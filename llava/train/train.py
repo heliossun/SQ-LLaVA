@@ -103,6 +103,9 @@ class TrainingArguments(transformers.TrainingArguments):
     lora_weight_path: str = ""
     lora_bias: str = "none"
 
+    #prompt tuning settings
+    pt_enable: bool = False
+    pt_method: str = "prefix"   #prefix: prefix tuning, pt:p-tuning
 
 def maybe_zero_3(param, ignore_status=False, name=None):
     from deepspeed import zero
@@ -118,7 +121,7 @@ def maybe_zero_3(param, ignore_status=False, name=None):
     return param
 
 
-# Borrowed from peft.utils.get_peft_model_state_dict
+# Borrowed from peft.utils.get_peft_model_state_dict prompt_encoder
 def get_peft_state_maybe_zero_3(named_params, bias):
     if bias == "none":
         to_return = {k: t for k, t in named_params if "lora_" in k}
@@ -182,20 +185,24 @@ def safe_save_model_for_hf_trainer(trainer: transformers.Trainer,
         if getattr(trainer.args, "use_im_start_end", False):
             keys_to_match.extend(['embed_tokens', 'embed_in'])
 
-        weight_to_save = get_mm_adapter_state_maybe_zero_3(trainer.model.named_parameters(), keys_to_match)
+        weight_to_save_adapter = get_mm_adapter_state_maybe_zero_3(trainer.model.named_parameters(), keys_to_match)
         trainer.model.config.save_pretrained(output_dir)
-
+        weight_to_save_pt_encoder = get_mm_adapter_state_maybe_zero_3(trainer.model.named_parameters(), ['prompt'])
+        print('pt encoder parameter:',weight_to_save_pt_encoder)
         current_folder = output_dir.split('/')[-1]
         parent_folder = os.path.dirname(output_dir)
         if trainer.args.local_rank == 0 or trainer.args.local_rank == -1:
             if current_folder.startswith('checkpoint-'):
                 mm_projector_folder = os.path.join(parent_folder, "mm_projector")
                 os.makedirs(mm_projector_folder, exist_ok=True)
-                torch.save(weight_to_save, os.path.join(mm_projector_folder, f'{current_folder}.bin'))
+                torch.save(weight_to_save_adapter, os.path.join(mm_projector_folder, f'{current_folder}.bin'))
             else:
-                torch.save(weight_to_save, os.path.join(output_dir, f'mm_projector.bin'))
+                torch.save(weight_to_save_adapter, os.path.join(output_dir, f'mm_projector.bin'))
+                torch.save(weight_to_save_pt_encoder, os.path.join(output_dir, f'pt_encoder.bin'))
         return
-
+    
+    
+    
     if trainer.deepspeed:
         torch.cuda.synchronize()
         trainer.save_model(output_dir)
@@ -266,6 +273,7 @@ def _tokenize_fn(strings: Sequence[str],
 def _mask_targets(target, tokenized_lens, speakers):
     # cur_idx = 0
     cur_idx = tokenized_lens[0]
+    print("current idx: ",cur_idx)
     tokenized_lens = tokenized_lens[1:]
     target[:cur_idx] = IGNORE_INDEX
     for tokenized_len, speaker in zip(tokenized_lens, speakers):
@@ -308,7 +316,7 @@ def preprocess_multimodal(
             if DEFAULT_IMAGE_TOKEN in sentence['value']:
                 sentence['value'] = sentence['value'].replace(DEFAULT_IMAGE_TOKEN, '').strip()
                 sentence['value'] = DEFAULT_IMAGE_TOKEN + '\n' + sentence['value']
-                sentence['value'] = sentence['value'].strip()
+                sentence['value'] = sentence['value'].strip() #string.strip : remove white space, ,. at front and end of the text
                 if "mmtag" in conversation_lib.default_conversation.version:
                     sentence['value'] = sentence['value'].replace(DEFAULT_IMAGE_TOKEN, '<Image>' + DEFAULT_IMAGE_TOKEN + '</Image>')
             replace_token = DEFAULT_IMAGE_TOKEN
@@ -608,15 +616,16 @@ def preprocess(
         conversations_tokenized = _tokenize_fn(conversations, tokenizer)
         input_ids = conversations_tokenized["input_ids"]
 
-    targets = copy.deepcopy(input_ids)
+    targets = copy.deepcopy(input_ids) # why? what is input_ids
     for target, source in zip(targets, sources):
         if has_image:
             tokenized_lens = get_tokenize_len([header] + [s["value"] for s in source])
         else:
             tokenized_lens = _tokenize_fn([header] + [s["value"] for s in source], tokenizer)["input_ids_lens"]
+        print("tokenized_length: ",tokenized_lens)
         speakers = [sentence["from"] for sentence in source]
         _mask_targets(target, tokenized_lens, speakers)
-
+    print("targets: ",targets)
     return dict(input_ids=input_ids, labels=targets)
 
 
@@ -759,7 +768,20 @@ def train():
                 bnb_4bit_quant_type=training_args.quant_type # {'fp4', 'nf4'}
             )
         ))
-
+    # if training_args.pt_enable:
+    #     rank0_print("<<<<<<<<<<<<<Adding learnable prompts...>>>>>>>>>>>>>>>>>")
+    #     if training_args.pt_method == "pt":
+    #         prompt_config = {
+    #             "is_prompt_learning":True,
+    #             "token_dim":4096,
+    #             "encoder_hidden_size":4096,
+    #             "num_virtual_tokens":10,
+    #             "num_transformer_submodules":1,
+    #             "encoder_type": "LSTM",
+    #             "inference_mode": False,}
+    # else:
+    #     prompt_config={"is_prompt_learning":False}
+    
     if model_args.vision_tower is not None:
         if 'mpt' in model_args.model_name_or_path:
             config = transformers.AutoConfig.from_pretrained(model_args.model_name_or_path, trust_remote_code=True)
@@ -818,6 +840,18 @@ def train():
         rank0_print("Adding LoRA adapters...")
         model = get_peft_model(model, lora_config)
 
+    if training_args.pt_enable:
+        prompt_config = {
+                "is_prompt_learning":True,
+                "token_dim":4096,
+                "encoder_hidden_size":4096,
+                "num_virtual_tokens":10,
+                "num_transformer_submodules":1,
+                "encoder_type": "MLP",
+                "inference_mode": False,}
+        model.get_model().initialize_prompt(config=prompt_config)
+    
+        
     if 'mpt' in model_args.model_name_or_path:
         tokenizer = transformers.AutoTokenizer.from_pretrained(
             model_args.model_name_or_path,
@@ -849,7 +883,7 @@ def train():
             conversation_lib.default_conversation = conversation_lib.conv_templates[model_args.version]
         else:
             conversation_lib.default_conversation = conversation_lib.conv_templates["vicuna_v1"]
-
+    
     if model_args.vision_tower is not None:
         model.get_model().initialize_vision_modules(
             model_args=model_args,
@@ -899,6 +933,7 @@ def train():
 
     data_module = make_supervised_data_module(tokenizer=tokenizer,
                                               data_args=data_args)
+    
     trainer = LLaVATrainer(model=model,
                     tokenizer=tokenizer,
                     args=training_args,
@@ -923,6 +958,12 @@ def train():
             model.config.save_pretrained(training_args.output_dir)
             model.save_pretrained(training_args.output_dir, state_dict=state_dict)
             torch.save(non_lora_state_dict, os.path.join(training_args.output_dir, 'non_lora_trainables.bin'))
+    
+    # if training_args.pt_enable:
+    #     state_dict = get_peft_state_maybe_zero_3(
+    #         model.named_parameters())
+    #     if training_args.local_rank == 0 or training_args.local_rank == -1:
+    #         model.config.save_pretrained(training_args.output_dir)
     else:
         safe_save_model_for_hf_trainer(trainer=trainer,
                                        output_dir=training_args.output_dir)

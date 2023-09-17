@@ -360,6 +360,20 @@ conv_llava_v1_mmtag = Conversation(
     version="v1_mmtag",
 )
 
+conv_self_q = Conversation(
+    system="A chat between a curious user and an artificial intelligence assistant. "
+           "The assistant is able to understand the visual content that the user provides, and assist the user with a variety of tasks using natural language."
+           "The visual content will be provided with the following format: <Image>visual content</Image>."
+           "The visual content may be an art style picture.",
+    roles=("USER", "ASSISTANT"),
+    messages=(),
+    offset=0,
+    sep_style=SeparatorStyle.TWO,
+    sep=" ",
+    sep2="</s>",
+    version="v1_mmtag",
+)
+
 default_conversation = conv_vicuna_v0
 conv_templates = {
     "default": conv_vicuna_v0,
@@ -377,6 +391,7 @@ conv_templates = {
     "llava_llama_2": conv_llava_llama_2,
 
     "mpt": conv_mpt,
+    "selfQ_mmtag": conv_self_q,
 }
 
 

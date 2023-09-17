@@ -19,9 +19,8 @@ import torch
 import torch.nn as nn
 
 from .multimodal_encoder.builder import build_vision_tower
-
 from llava.constants import IGNORE_INDEX, IMAGE_TOKEN_INDEX, DEFAULT_IMAGE_PATCH_TOKEN, DEFAULT_IM_START_TOKEN, DEFAULT_IM_END_TOKEN
-
+from .language_model.prompt_tuning.prompt import PromptEncoder
 
 class LlavaMetaModel:
 
@@ -31,12 +30,16 @@ class LlavaMetaModel:
         if hasattr(config, "mm_vision_tower"):
             self.vision_tower = build_vision_tower(config, delay_load=True)
             self.mm_projector = nn.Linear(config.mm_hidden_size, config.hidden_size)
-
+            
     def get_vision_tower(self):
         vision_tower = getattr(self, 'vision_tower', None)
         if type(vision_tower) is list:
             vision_tower = vision_tower[0]
         return vision_tower
+    
+    def initialize_prompt(self,config):
+        self.propmt_config = config
+        self.prompt_encoder = PromptEncoder(config)
 
     def initialize_vision_modules(self, model_args, fsdp=None):
         vision_tower = model_args.vision_tower
@@ -68,7 +71,20 @@ class LlavaMetaModel:
 
             self.mm_projector.load_state_dict(get_w(mm_projector_weights, 'mm_projector'))
 
-
+    def get_prompt(self, batch_size: int,device): 
+        self.prompt_encoder = self.prompt_encoder.to(device)
+        prompt_tokens= torch.arange(self.prompt_config.num_virtual_tokens * 
+                                    self.prompt_config.num_transformer_submodules).long()
+        prompt_tokens = (
+            prompt_tokens.unsqueeze(0).expand(batch_size, -1)
+            .to(device)
+        )              
+        if self.prompt_config.inference_mode:
+            prompts = self.prompt_encoder.embedding.weight.repeat(batch_size, 1, 1)
+        else:
+            prompts = self.prompt_encoder(prompt_tokens)
+        return prompts
+    
 class LlavaMetaForCausalLM(ABC):
 
     @abstractmethod
@@ -82,10 +98,13 @@ class LlavaMetaForCausalLM(ABC):
         image_features = self.get_model().get_vision_tower()(images)
         image_features = self.get_model().mm_projector(image_features)
         return image_features
-
-    def prepare_inputs_labels_for_multimodal(
-        self, input_ids, attention_mask, past_key_values, labels, images
-    ):
+    
+    def get_prompt(self,bs,device):
+        return self.get_model().get_prompt(bs,device)
+    
+    def prepare_inputs_labels_for_multimodal(self, input_ids, attention_mask, 
+                                             past_key_values, labels, images):
+        
         vision_tower = self.get_vision_tower()
         if vision_tower is None or images is None or input_ids.shape[1] == 1:
             if past_key_values is not None and vision_tower is not None and images is not None and input_ids.shape[1] == 1:
@@ -120,6 +139,11 @@ class LlavaMetaForCausalLM(ABC):
                 cur_labels = labels[batch_idx]
                 cur_new_labels = []
                 assert cur_labels.shape == cur_input_ids.shape
+            # pt tuning v2
+            if self.prompt_config['is_prompt_learning']:
+                prompts = self.get_prompt(batch_size=cur_input_ids.shape[0], device=attention_mask.device)
+                prompts = prompts.to(cur_new_embed.dtype)
+                #new_input_embeds = torch.cat((prompts, new_input_embeds), dim=1)
             while image_token_indices.numel() > 0:
                 cur_image_features = image_features[cur_image_idx]
                 image_token_start = image_token_indices[0]
@@ -155,6 +179,7 @@ class LlavaMetaForCausalLM(ABC):
                     cur_new_labels.append(cur_labels)
             cur_new_input_embeds = [x.to(device=self.device) for x in cur_new_input_embeds]
             cur_new_input_embeds = torch.cat(cur_new_input_embeds, dim=0)
+            
             new_input_embeds.append(cur_new_input_embeds)
             if labels is not None:
                 cur_new_labels = torch.cat(cur_new_labels, dim=0)
@@ -162,13 +187,16 @@ class LlavaMetaForCausalLM(ABC):
 
         if any(x.shape != new_input_embeds[0].shape for x in new_input_embeds):
             max_len = max(x.shape[0] for x in new_input_embeds)
-
             new_input_embeds_align = []
             for cur_new_embed in new_input_embeds:
                 cur_new_embed = torch.cat((cur_new_embed, torch.zeros((max_len - cur_new_embed.shape[0], cur_new_embed.shape[1]), dtype=cur_new_embed.dtype, device=cur_new_embed.device)), dim=0)
                 new_input_embeds_align.append(cur_new_embed)
             new_input_embeds = torch.stack(new_input_embeds_align, dim=0)
-
+            # pt tuning V1 
+            # if self.prompt_config['is_prompt_learning']:
+            #     prompts = self.get_prompt(batch_size=input_ids.shape[0], device=attention_mask.device)
+            #     prompts = prompts.to(cur_new_embed.dtype)
+            #     new_input_embeds = torch.cat((prompts, new_input_embeds), dim=1)
             if labels is not None:
                 new_labels_align = []
                 _new_labels = new_labels
@@ -194,6 +222,8 @@ class LlavaMetaForCausalLM(ABC):
             if attention_mask is not None:
                 new_attn_mask_pad_left = torch.full((attention_mask.shape[0], new_input_embeds.shape[1] - input_ids.shape[1]), True, dtype=attention_mask.dtype, device=attention_mask.device)
                 attention_mask = torch.cat((new_attn_mask_pad_left, attention_mask), dim=1)
+                #print("attn mask shape:",attention_mask.shape)
+                #print("new input embed:",new_input_embeds.shape)
                 assert attention_mask.shape == new_input_embeds.shape[:2]
 
         return None, attention_mask, past_key_values, new_input_embeds, new_labels

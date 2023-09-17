@@ -14,8 +14,6 @@ from peft import PeftConfig, PeftModel
 from PIL import Image
 import math
 
-from keybert import KeyBERT
-
 def split_list(lst, n):
     """Split a list into n (roughly) equal-sized chunks"""
     chunk_size = math.ceil(len(lst) / n)  # integer division
@@ -39,14 +37,12 @@ def eval_model(args):
     answers_file = os.path.expanduser(args.answers_file)
     os.makedirs(os.path.dirname(answers_file), exist_ok=True)
     ans_file = open(answers_file, "w")
-    total = 0
-    correct = 0
-    kw_model = KeyBERT()
     for line in tqdm(questions):
         idx = line["question_id"]
         image_file = line["image"]
         qs = line["text"]
-        label = line["label"].lower()
+        #label = line["label"]
+        #labels.append(label)
         cur_prompt = qs
         if model.config.mm_use_im_start_end:
             qs = DEFAULT_IM_START_TOKEN + DEFAULT_IMAGE_TOKEN + DEFAULT_IM_END_TOKEN + '\n' + qs
@@ -88,23 +84,7 @@ def eval_model(args):
         if outputs.endswith(stop_str):
             outputs = outputs[:-len(stop_str)]
         outputs = outputs.strip()
-        print(outputs)
-        
-        if args.classfy == "extract":
-            # output = kw_model.extract_keywords(outputs, keyphrase_ngram_range=(1, 1), stop_words=["the","most","significant",
-            #                                                                                       "of","in","this","image","with",
-            #                                                                                       ",","which","a","and","is"])
-            output = kw_model.extract_keywords(outputs,keyphrase_ngram_range=(2, 2), stop_words='english',use_mmr=True,diversity=0.7)
-            output_label = output[0][0]
-        elif args.classfy == "simple":
-            output = outputs.strip(",.").split()
-            output_label = output[-1]
-        #print("prediction: ",output_label)
-        #print("label: ",label)
-        if label in output_label.lower():
-            correct +=1
-            #print("correct")
-        total += 1
+        #predictions.append(outputs)
         ans_id = shortuuid.uuid()
         ans_file.write(json.dumps({"question_id": idx,
                                    "prompt": cur_prompt,
@@ -113,7 +93,7 @@ def eval_model(args):
                                    "model_id": model_name,
                                    "metadata": {}}) + "\n")
         ans_file.flush()
-    print("Prediction accuracy: {:.4f}".format(correct/total))
+    
     ans_file.close()
 
 if __name__ == "__main__":
@@ -124,7 +104,6 @@ if __name__ == "__main__":
     parser.add_argument("--question-file", type=str, default="tables/question.jsonl")
     parser.add_argument("--answers-file", type=str, default="answer.jsonl")
     parser.add_argument("--conv-mode", type=str, default="llava_v1")
-    parser.add_argument("--classfy", type=str, default=None)
     parser.add_argument("--num-chunks", type=int, default=1)
     parser.add_argument("--chunk-idx", type=int, default=0)
     parser.add_argument("--temperature", type=float, default=0.2)
