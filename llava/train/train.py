@@ -57,6 +57,9 @@ class ModelArguments:
     mm_use_im_start_end: bool = field(default=False)
     mm_use_im_patch_token: bool = field(default=True)
     mm_vision_select_feature: Optional[str] = field(default="patch")
+    pre_trained_clip:str = field(default="ViT-L/14")
+    visual_prompt:bool = field(default=False)
+    pretrain_prompt_projector: Optional[str] = field(default=None)
 
 
 @dataclass
@@ -188,7 +191,7 @@ def safe_save_model_for_hf_trainer(trainer: transformers.Trainer,
         weight_to_save_adapter = get_mm_adapter_state_maybe_zero_3(trainer.model.named_parameters(), keys_to_match)
         trainer.model.config.save_pretrained(output_dir)
         weight_to_save_pt_encoder = get_mm_adapter_state_maybe_zero_3(trainer.model.named_parameters(), ['prompt'])
-        print('pt encoder parameter:',weight_to_save_pt_encoder)
+        #print('pt encoder parameter:',weight_to_save_pt_encoder)
         current_folder = output_dir.split('/')[-1]
         parent_folder = os.path.dirname(output_dir)
         if trainer.args.local_rank == 0 or trainer.args.local_rank == -1:
@@ -841,6 +844,7 @@ def train():
         model = get_peft_model(model, lora_config)
 
     if training_args.pt_enable:
+        # num_virtual_tokens = maple_length
         prompt_config = {
                 "is_prompt_learning":True,
                 "token_dim":4096,
@@ -848,9 +852,16 @@ def train():
                 "num_virtual_tokens":10,
                 "num_transformer_submodules":1,
                 "encoder_type": "MLP",
-                "inference_mode": False,}
+                "inference_mode": False,
+                "visual_prompt":model_args.visual_prompt,
+                "compound_prompts_depth":12}
         model.get_model().initialize_prompt(config=prompt_config)
-    
+    design_details = {"trainer": 'MaPLe',
+                      "vision_depth": 0,
+                      "language_depth": 0, 
+                      "vision_ctx": 0,
+                      "language_ctx": 0,
+                      "maple_length": 10}
         
     if 'mpt' in model_args.model_name_or_path:
         tokenizer = transformers.AutoTokenizer.from_pretrained(
@@ -884,9 +895,10 @@ def train():
         else:
             conversation_lib.default_conversation = conversation_lib.conv_templates["vicuna_v1"]
     
-    if model_args.vision_tower is not None:
+    if model_args.vision_tower is not None or model_args.propmt is not None:
         model.get_model().initialize_vision_modules(
             model_args=model_args,
+            design_details=design_details,
             fsdp=training_args.fsdp
         )
         
@@ -904,7 +916,12 @@ def train():
             model.requires_grad_(False)
             for p in model.get_model().mm_projector.parameters():
                 p.requires_grad = True
-
+        if training_args.pt_enable:
+            for p in model.get_model().prompt_encoder.parameters():
+                p.requires_grad = True
+            if model_args.visual_prompt:
+                for p in model.get_model().prompt_projector.parameters():
+                    p.requires_grad = True
         model.config.freeze_mm_mlp_adapter = training_args.freeze_mm_mlp_adapter
         if training_args.freeze_mm_mlp_adapter:
             for p in model.get_model().mm_projector.parameters():
@@ -912,7 +929,10 @@ def train():
 
         if training_args.bits in [4, 8]:
             model.get_model().mm_projector.to(dtype=compute_dtype, device=training_args.device)
-
+        # print("trainable params:>>><<<")
+        # for name,param in model.get_model().named_parameters():
+        #     if param.requires_grad:
+        #         print(name)
         model.config.mm_use_im_start_end = data_args.mm_use_im_start_end = model_args.mm_use_im_start_end
         training_args.use_im_start_end = model_args.mm_use_im_start_end
         model.config.mm_use_im_patch_token = model_args.mm_use_im_patch_token

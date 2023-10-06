@@ -76,23 +76,7 @@ class LlavaLlamaForCausalLM(LlamaForCausalLM, LlavaMetaForCausalLM):
         #print('I got the image and try to use it>>>>>>>>>>>>>.')
         
         input_ids, attention_mask, past_key_values, inputs_embeds, labels = self.prepare_inputs_labels_for_multimodal(input_ids, attention_mask, past_key_values, labels, images)
-        # from peft import get_peft_config, get_peft_model, PeftModelForCausalLM, PrefixTuningConfig, TaskType, PromptEncoderConfig
         
-        # config = {
-        #     "peft_type": "P_TUNING",
-        #     "task_type": "CAUSAL_LM",
-        #     "inference_mode": False,
-        #     "num_virtual_tokens": 10,
-        #     "token_dim": 4096,
-        #     "num_transformer_submodules": 1,
-        #     "num_attention_heads": 32,
-        #     "num_layers": 32,
-        #     "encoder_reparameterization_type":"MLP",
-        #     "encoder_hidden_size": 4096,}
-        # peft_config = get_peft_config(config)
-        # self.model= PeftModelForCausalLM(self.model, peft_config)
-        # self.model.print_trainable_parameters()
-        #print("input embeds",inputs_embeds)
         outputs = self.model(
             input_ids=input_ids,
             attention_mask=attention_mask,

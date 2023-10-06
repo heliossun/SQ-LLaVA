@@ -13,6 +13,8 @@ from llava.mm_utils import tokenizer_image_token, get_model_name_from_path, Keyw
 from peft import PeftConfig, PeftModel
 from PIL import Image
 import math
+from open_clip.elip import elip_retrieval
+import open_clip
 
 def split_list(lst, n):
     """Split a list into n (roughly) equal-sized chunks"""
@@ -24,13 +26,56 @@ def get_chunk(lst, n, k):
     chunks = split_list(lst, n)
     return chunks[k]
 
+def eval_elip(args):
+    model, _, transform = open_clip.create_model_and_transforms(
+        model_name="coca_ViT-L-14",
+        pretrained="mscoco_finetuned_laion2B-s13B-b90k"
+    )
 
+    # elip_model = elip_retrieval(pretrain_clip="ViT-L/14",
+    #                             pretrained="/home/gs4288/ELIP/output/ELIP-best/checkpoint_best.pth",
+    #                             device='cuda')
+    #elip_model=elip_model.to('cuda')
+    model=model.to('cuda')
+    #model.elip_model=elip_model
+    questions = [json.loads(q) for q in open(os.path.expanduser(args.question_file), "r")]
+    answers_file = os.path.expanduser(args.answers_file)
+    os.makedirs(os.path.dirname(answers_file), exist_ok=True)
+    ans_file = open(answers_file, "w")
+    for line in tqdm(questions):
+        image_file = line["image"]
+        img_id = line['image_id']
+        # label = line["label"]
+        # labels.append(label)
+
+        image = Image.open(os.path.join(args.image_folder, image_file)).convert("RGB")
+        im = transform(image).unsqueeze(0)
+        im=im.to('cuda')
+        with torch.no_grad(), torch.cuda.amp.autocast():
+            generated = model.generate(im, num_beam_groups=1)
+
+        answer = open_clip.decode(generated[0]).split("<end_of_text>")[0].replace("<start_of_text>", "")
+        ans_file.write(json.dumps({"text": answer, "image_id":img_id}) + "\n")
+        ans_file.flush()
+
+
+    ans_file.close()
 def eval_model(args):
     # Model
     disable_torch_init()
     model_path = os.path.expanduser(args.model_path)
     model_name = get_model_name_from_path(model_path)
-    tokenizer, model, image_processor, context_len = load_pretrained_model(model_path, args.model_base, model_name,device_map='auto')
+    prompt_config = {
+                        "is_prompt_learning":True,
+                        "token_dim":4096,
+                        "encoder_hidden_size":4096,
+                        "num_virtual_tokens":50,
+                        "num_transformer_submodules":1,
+                        "encoder_type": "MLP",
+                        "inference_mode": False,
+                        "visual_prompt":False,
+                        "compound_prompts_depth":12}
+    tokenizer, model, image_processor, context_len = load_pretrained_model(model_path, args.model_base, model_name,device_map='auto',prompt_config=prompt_config)
 
     questions = [json.loads(q) for q in open(os.path.expanduser(args.question_file), "r")]
     questions = get_chunk(questions, args.num_chunks, args.chunk_idx)
@@ -55,8 +100,11 @@ def eval_model(args):
         prompt = conv.get_prompt()
         #print("prompt:",prompt)
         input_ids = tokenizer_image_token(prompt, tokenizer, IMAGE_TOKEN_INDEX, return_tensors='pt').unsqueeze(0).cuda()
-
-        image = Image.open(os.path.join(args.image_folder, image_file))
+        image_path = os.path.join(args.image_folder, image_file)
+        try:
+            image = Image.open(image_path)
+        except:
+            continue
         image_tensor = image_processor.preprocess(image, return_tensors='pt')['pixel_values'][0]
 
         stop_str = conv.sep if conv.sep_style != SeparatorStyle.TWO else conv.sep2
@@ -110,5 +158,7 @@ if __name__ == "__main__":
     parser.add_argument("--top_p", type=float, default=None)
     parser.add_argument("--num_beams", type=int, default=1)
     args = parser.parse_args()
-
-    eval_model(args)
+    if args.model_path == "clip":
+        eval_elip(args)
+    else:
+        eval_model(args)

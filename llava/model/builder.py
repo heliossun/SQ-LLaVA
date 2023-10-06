@@ -22,7 +22,7 @@ from llava.model import *
 from llava.constants import DEFAULT_IMAGE_PATCH_TOKEN, DEFAULT_IM_START_TOKEN, DEFAULT_IM_END_TOKEN
 
 
-def load_pretrained_model(model_path, model_base, model_name, load_8bit=False, load_4bit=False, device_map="cpu"):
+def load_pretrained_model(model_path, model_base, model_name, load_8bit=False, load_4bit=False, device_map="cpu",prompt_config=None):
     kwargs = {"device_map": device_map}
 
     if load_8bit:
@@ -71,14 +71,7 @@ def load_pretrained_model(model_path, model_base, model_name, load_8bit=False, l
                 model.load_state_dict(mm_projector_weights, strict=False)
             if os.path.exists(os.path.join(model_path, 'pt_encoder.bin')):
                 print('Loading prompt encoder')
-                prompt_config = {
-                    "is_prompt_learning":True,
-                    "token_dim":4096,
-                    "encoder_hidden_size":4096,
-                    "num_virtual_tokens":10,
-                    "num_transformer_submodules":1,
-                    "encoder_type": "MLP",
-                    "inference_mode": False,}
+                
                 model.model.initialize_prompt(config=prompt_config)
                 pt_encoder = torch.load(os.path.join(model_path, 'pt_encoder.bin'), map_location='cpu')
                 pt_encoder = {k: v.to(torch.float16) for k, v in pt_encoder.items()}

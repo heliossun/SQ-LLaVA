@@ -1,0 +1,7 @@
+
+captioning_output/.DS_Store
+*.json
+captioning_output/llava_lm2_lora/.DS_Store
+captioning_output/llava_vicuna_lora/.DS_Store
+llava/.DS_Store
+llava/model/.DS_Store
