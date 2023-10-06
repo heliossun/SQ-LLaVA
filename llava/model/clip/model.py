@@ -306,49 +306,13 @@ class ResidualAttentionBlock_MaPLe(nn.Module):
         # For the first layer, we do not need to add any duplicate, as it is already added
         # as the shallow version
         x = inputs[0]
-        compound_prompts_deeper = inputs[1]
-        counter = inputs[2]
-        if not self.first_layer:
-            if len(compound_prompts_deeper) > 0:
-                # This means that deeper compound prompts are turned on
-                # Here it behaves differently for text and visual side
-                # Forward function is same for both
-
-                if not self.text_layer:
-                    # First check if the ith layer needs compound prompts or not
-                    if not (counter > len(compound_prompts_deeper) - 1):
-                        # Remove the outputs produced by learnable tokens of previous layer
-                        prefix = x[0:x.shape[0] - self.compound_prompt_nctx, :, :]
-                        #print("prefix shape:",prefix.shape)
-                        # Create/configure learnable tokens of this layer
-                        visual_context = compound_prompts_deeper[counter]  # extract the correct index
-                        visual_context = visual_context.permute(1, 0, 2)
-                        #print("propmt shape:",visual_context.shape)
-                        # Add the learnable tokens of this layer with the input, by replacing previous
-                        # layer learnable tokens
-                        x = torch.cat([prefix, visual_context], dim=0)
-
-                        # Once done, update the counter, so that the next time, it does not use same learnable tokens
-                        counter += 1
-                else:
-                    # First check if the ith layer needs compound prompts or not
-                    if not (counter > len(compound_prompts_deeper) - 1):
-                        # Appending the learnable tokens in different way
-                        # x -> [77, NCLS, DIM]
-                        # First remove the learnable tokens from previous layer
-                        prefix = x[:1, :, :]
-                        suffix = x[1 + self.compound_prompt_nctx:, :, :]
-                        # Create/configure learnable tokens of this layer
-                        textual_context = compound_prompts_deeper[counter]
-                        textual_context = textual_context.expand(x.shape[1], -1, -1).permute(1, 0, 2).half()
-                        # Add the learnable tokens of this layer with the input, replaced by previous
-                        # layer learnable tokens
-                        x = torch.cat([prefix, textual_context, suffix], dim=0)
-                        # Once done, update the counter, so that the next time, it does not use same learnable tokens
-                        counter += 1
         x = x + self.attention(self.ln_1(x))
         x = x + self.mlp(self.ln_2(x))
-        return [x, compound_prompts_deeper, counter]  # return again as a list, so that nn.seq can work
+        if self.first_layer:
+            compound_prompts_deeper = inputs[1]
+            visual_context = compound_prompts_deeper.permute(1, 0, 2)  # extract the correct index
+            x = torch.cat([x, visual_context], dim=0)      
+        return x # return again as a list, so that nn.seq can work
 
 
 class Transformer(nn.Module):
@@ -485,7 +449,7 @@ class VisionTransformer_MaPLe(nn.Module):
         #print("propmt shape:",compound_deeper_prompts[0].shape)
         x = x.permute(1, 0, 2)  # NLD -> LND
         # Again combine the inputs, so nn.sequential can work
-        outputs = self.transformer([x, compound_deeper_prompts, 0])  # third argument is counter
+        outputs = self.transformer([x, compound_deeper_prompts])  # third argument is counter
         x = outputs[0]
         x = x.permute(1, 0, 2)  # LND -> NLD
         #print("visual embedding shape:",x.shape)

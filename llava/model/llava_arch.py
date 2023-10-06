@@ -150,7 +150,7 @@ class LlavaMetaForCausalLM(ABC):
     def encode_images(self, images):
         image_features = self.get_model().get_vision_tower()(images)
         image_features = self.get_model().mm_projector(image_features)
-        print("image feature shape:",image_features.shape)
+        #print("image feature shape:",image_features.shape)
         return image_features
     
     def encode_image_w_prompt(self,image, prompts,prompt_config):
@@ -161,9 +161,9 @@ class LlavaMetaForCausalLM(ABC):
         prompts = self.get_model().prompt_projector(prompts)
         #print("propmts type: ",prompts.dtype)
         #print("clip type",self.get_model().clip_model.dtype)
-        compound_prompts_image = nn.ParameterList([prompts for _ in range(prompt_config['compound_prompts_depth'] - 1)])
+        #compound_prompts_image = nn.ParameterList([prompts for _ in range(prompt_config['compound_prompts_depth'] - 1)])
         self.get_model().clip_model=self.get_model().clip_model.to(prompts.device)
-        image_features = self.get_model().clip_model.visual(image,None, compound_deeper_prompts=compound_prompts_image)
+        image_features = self.get_model().clip_model.visual(image,None, compound_deeper_prompts=prompts)
         image_features = self.get_model().mm_projector(image_features)
         return image_features
     
