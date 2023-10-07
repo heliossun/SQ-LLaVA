@@ -322,12 +322,12 @@ class ResidualAttentionBlock_MaPLe(nn.Module):
                         #print("prefix shape:",prefix.shape)
                         # Create/configure learnable tokens of this layer
                         visual_context = compound_prompts_deeper[counter]  # extract the correct index
+                        
                         visual_context = visual_context.permute(1, 0, 2)
                         #print("propmt shape:",visual_context.shape)
                         # Add the learnable tokens of this layer with the input, by replacing previous
                         # layer learnable tokens
                         x = torch.cat([prefix, visual_context], dim=0)
-
                         # Once done, update the counter, so that the next time, it does not use same learnable tokens
                         counter += 1
                 else:

@@ -201,10 +201,9 @@ class LlavaMetaForCausalLM(ABC):
             image_features = [x.flatten(0, 1) for x in image_features]
         else:
             if self.vision_propmt():
-                image_features = self.encode_image_w_prompt(images,prompts,self.prompt_config)
+                image_features = self.encode_image_w_prompt(images,prompts,self.prompt_config) #
             else:
-                image_features = self.encode_images(images)
-
+                image_features = self.encode_images(images)  # [4, 256, 4096]
         new_input_embeds = []
         new_labels = [] if labels is not None else None
         cur_image_idx = 0
