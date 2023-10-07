@@ -53,11 +53,14 @@ class LlavaMetaModel:
         model = clip.build_model(state_dict or model.state_dict(), design_details)
         return model
     
+    def initialize_clip(self, design,pre_trained_clip):
+        self.clip_model = self.load_clip_to_cpu(pre_trained_clip,design)
+
     def initialize_prompt(self,config):
         self.propmt_config=config
         print(config)
-        self.prompt_encoder = PromptEncoder(config)
-        self.prompt_projector = nn.Linear(self.config.hidden_size, 1024)
+        self.prompt_encoder = PromptEncoder(config).to(dtype=torch.float16)
+        self.prompt_projector = nn.Linear(self.config.hidden_size, 1024).to(dtype=torch.float16)
         self.visual_propmt=config['visual_prompt']
     
     def get_prompt_config(self):
@@ -150,20 +153,16 @@ class LlavaMetaForCausalLM(ABC):
     def encode_images(self, images):
         image_features = self.get_model().get_vision_tower()(images)
         image_features = self.get_model().mm_projector(image_features)
-        #print("image feature shape:",image_features.shape)
         return image_features
     
     def encode_image_w_prompt(self,image, prompts,prompt_config):
         #print("initialize prompts: ",prompts) #prompt shape [25, 10, 4096]
         self.get_model().prompt_projector=self.get_model().prompt_projector.to(prompts.device)
         #print(self.get_model().prompt_projector)
-        #print('image type',image.dtype)
         prompts = self.get_model().prompt_projector(prompts)
-        #print("propmts type: ",prompts.dtype)
-        #print("clip type",self.get_model().clip_model.dtype)
-        #compound_prompts_image = nn.ParameterList([prompts for _ in range(prompt_config['compound_prompts_depth'] - 1)])
+        compound_prompts_image = nn.ParameterList([prompts for _ in range(prompt_config['compound_prompts_depth'] - 1)])
         self.get_model().clip_model=self.get_model().clip_model.to(prompts.device)
-        image_features = self.get_model().clip_model.visual(image,None, compound_deeper_prompts=prompts)
+        image_features = self.get_model().clip_model.visual(image,None, compound_deeper_prompts=compound_prompts_image)
         image_features = self.get_model().mm_projector(image_features)
         return image_features
     
