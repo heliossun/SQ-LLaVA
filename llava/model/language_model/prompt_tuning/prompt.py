@@ -40,6 +40,7 @@ class PromptEncoder(torch.nn.Module):
         # embedding
         self.embedding = torch.nn.Embedding(self.total_virtual_tokens, self.token_dim)
         if not config['inference_mode']:
+            print("Prompt encoder type:",self.encoder_type)
             if self.encoder_type == "LSTM":
                 lstm_dropout = config['encoder_dropout']
                 num_layers = config['encoder_num_layers']

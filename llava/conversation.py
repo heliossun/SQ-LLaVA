@@ -262,6 +262,19 @@ conv_vicuna_v1 = Conversation(
     sep2="</s>",
 )
 
+conv_vicuna_v1_aq = Conversation(
+    system="A chat between a curious user and an artificial intelligence assistant. "
+    "The user gives helpful, detailed, and polite answers, the assistant should ask one question that can be answered with the user's answers.",
+    roles=("USER", "ASSISTANT"),
+    version="v1",
+    messages=(),
+    offset=0,
+    sep_style=SeparatorStyle.TWO,
+    sep=" ",
+    sep2="</s>",
+)
+
+
 conv_llama_2 = Conversation(
     system="""You are a helpful, respectful and honest assistant. Always answer as helpfully as possible, while being safe.  Your answers should not include any harmful, unethical, racist, sexist, toxic, dangerous, or illegal content. Please ensure that your responses are socially unbiased and positive in nature.
 
@@ -379,6 +392,7 @@ conv_templates = {
     "default": conv_vicuna_v0,
     "v0": conv_vicuna_v0,
     "v1": conv_vicuna_v1,
+    "v1_aq": conv_vicuna_v1_aq,
     "vicuna_v1": conv_vicuna_v1,
     "llama_2": conv_llama_2,
 
