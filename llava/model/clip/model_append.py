@@ -308,48 +308,46 @@ class ResidualAttentionBlock_MaPLe(nn.Module):
         x = inputs[0]
         compound_prompts_deeper = inputs[1]
         counter = inputs[2]
-        
-        if len(compound_prompts_deeper) > 0:
-            if not self.text_layer:
-                # First check if the ith layer needs compound prompts or not
-                if counter < len(compound_prompts_deeper) - 1:
-                    #append
-                    # prefix = x[0:x.shape[0] - self.compound_prompt_nctx, :, :]
-                    # visual_context = compound_prompts_deeper[counter]  # extract the correct index
-                    # visual_context = visual_context.permute(1, 0, 2)
-                    # x = torch.cat([prefix, visual_context], dim=0)
-                    # counter += 1
+        if not self.first_layer:
+            if len(compound_prompts_deeper) > 0:
+                # This means that deeper compound prompts are turned on
+                # Here it behaves differently for text and visual side
+                # Forward function is same for both
 
-                    #prepend
-                    prefix = x[:1, :, :]
-                    suffix = x[1+ self.compound_prompt_nctx:, :, :]
-                    # Create/configure learnable tokens of this layer
-                    visual_context = compound_prompts_deeper[counter]  # extract the correct index
-                    visual_context = visual_context.permute(1, 0, 2)
-                    # Add the learnable tokens of this layer with the input, replaced by previous
-                    # layer learnable tokens
-                    x = torch.cat([prefix, visual_context, suffix], dim=0)
-                    # Once done, update the counter, so that the next time, it does not use same learnable tokens
-                    counter += 1
-            else:
-                # First check if the ith layer needs compound prompts or not
-                if not (counter > len(compound_prompts_deeper) - 1):
-                    # Appending the learnable tokens in different way
-                    # x -> [77, NCLS, DIM]
-                    # First remove the learnable tokens from previous layer
-                    prefix = x[:1, :, :]
-                    suffix = x[1 + self.compound_prompt_nctx:, :, :]
-                    # Create/configure learnable tokens of this layer
-                    textual_context = compound_prompts_deeper[counter]
-                    textual_context = textual_context.expand(x.shape[1], -1, -1).permute(1, 0, 2).half()
-                    # Add the learnable tokens of this layer with the input, replaced by previous
-                    # layer learnable tokens
-                    x = torch.cat([prefix, textual_context, suffix], dim=0)
-                    # Once done, update the counter, so that the next time, it does not use same learnable tokens
-                    counter += 1
+                if not self.text_layer:
+                    # First check if the ith layer needs compound prompts or not
+                    if not (counter > len(compound_prompts_deeper) - 1):
+                        # Remove the outputs produced by learnable tokens of previous layer
+                        prefix = x[0:x.shape[0] - self.compound_prompt_nctx, :, :]
+                        #print("prefix shape:",prefix.shape)
+                        # Create/configure learnable tokens of this layer
+                        visual_context = compound_prompts_deeper[counter]  # extract the correct index
+                        visual_context = visual_context.permute(1, 0, 2)
+                        #print("propmt shape:",visual_context.shape)
+                        # Add the learnable tokens of this layer with the input, by replacing previous
+                        # layer learnable tokens
+                        x = torch.cat([prefix, visual_context], dim=0)
+                        #print(f"current layer: {counter} <<>> prompt shape: {visual_context.shape}, <<>> x shape: {x.shape}")
+                        # Once done, update the counter, so that the next time, it does not use same learnable tokens
+                        counter += 1
+                else:
+                    # First check if the ith layer needs compound prompts or not
+                    if not (counter > len(compound_prompts_deeper) - 1):
+                        # Appending the learnable tokens in different way
+                        # x -> [77, NCLS, DIM]
+                        # First remove the learnable tokens from previous layer
+                        prefix = x[:1, :, :]
+                        suffix = x[1 + self.compound_prompt_nctx:, :, :]
+                        # Create/configure learnable tokens of this layer
+                        textual_context = compound_prompts_deeper[counter]
+                        textual_context = textual_context.expand(x.shape[1], -1, -1).permute(1, 0, 2).half()
+                        # Add the learnable tokens of this layer with the input, replaced by previous
+                        # layer learnable tokens
+                        x = torch.cat([prefix, textual_context, suffix], dim=0)
+                        # Once done, update the counter, so that the next time, it does not use same learnable tokens
+                        counter += 1
         x = x + self.attention(self.ln_1(x))
         x = x + self.mlp(self.ln_2(x))
-        
         return [x, compound_prompts_deeper, counter]  # return again as a list, so that nn.seq can work
 
 
@@ -473,16 +471,11 @@ class VisionTransformer_MaPLe(nn.Module):
              x], dim=1)  # shape = [*, grid ** 2 + 1, width]
         x = x + self.positional_embedding.to(x.dtype)
 
-        # layer learnable tokens
-        #x = torch.cat([prefix, visual_context, suffix], dim=0)
-        prefix = x[:, :1, :]
-        suffix = x[:, 1:, :]
+        # After positional embeddings, we will attach prompts with the model, remember only those
+        # are trainable parameters here in whole image encoder.
+        x = torch.cat([x, compound_deeper_prompts[0]], dim=1)
         
-        # Create/configure learnable tokens of this layer
-        visual_context = compound_deeper_prompts[0]  # extract the correct index
-        # Add the learnable tokens of this layer with the input, replaced by previous
-        # layer learnable tokens
-        x = torch.cat([prefix, visual_context, suffix], dim=1)
+
         # Normal code as before
         x = self.ln_pre(x)
         #print("image shape:",x.shape)

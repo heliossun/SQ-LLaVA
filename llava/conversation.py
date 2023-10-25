@@ -262,6 +262,18 @@ conv_vicuna_v1 = Conversation(
     sep2="</s>",
 )
 
+conv_vicuna_v1_sq = Conversation(
+    system="A chat between a curious user and an artificial intelligence assistant. "
+    "The assistant gives helpful, detailed, and polite answers to the user's questions.",
+    roles=("USER", "ASSISTANT", "VUSER"),
+    version="v1_sq",
+    messages=(),
+    offset=0,
+    sep_style=SeparatorStyle.TWO,
+    sep=" ",
+    sep2="</s>",
+)
+
 conv_vicuna_v1_aq = Conversation(
     system="A chat between a curious user and an artificial intelligence assistant. "
     "The user gives helpful, detailed, and polite answers, the assistant should ask one question that can be answered with the user's answers.",
@@ -393,6 +405,7 @@ conv_templates = {
     "v0": conv_vicuna_v0,
     "v1": conv_vicuna_v1,
     "v1_aq": conv_vicuna_v1_aq,
+    "v1_sq": conv_vicuna_v1_sq,
     "vicuna_v1": conv_vicuna_v1,
     "llama_2": conv_llama_2,
 

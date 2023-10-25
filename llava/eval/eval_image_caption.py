@@ -52,39 +52,42 @@ def evaluate_caption(args,predictions:list=[],references:list=[]):
     # bleu_results = bleu.compute(predictions=predictions, references=reference)   #prediction: list of strings, reference: list of list
     #scorer = NLGMetricverse(metrics=metrics)
     #scores = scorer(predictions=predictions, references=references,reduce_fn="max")
-    print(f"Current model: {args.model_name} <<>> Max words: {args.max_words}")
-    print("BLEU:")
-    corpus_scores, _ = bleu(predictions, references)
-    print(corpus_scores)    
+    #print(f"Current model: {args.model_name} <<>> Max words: {args.max_words}")
+    #print("BLEU:")
+    b_s, _ = bleu(predictions, references)
+    #print(b_s)
     
     #scores = scorer.compute(predictions=predictions, references=references,reduce_fn="max")
-    print("METEOR:")
-    corpus_scores, _ = meteor(predictions, references)
-    print(corpus_scores)
+    #print("METEOR:")
+    m_s, _ = meteor(predictions, references)
+    #print(m_s)
 
-    print("Cider:")
-    corpus_scores, _ = cider_d(predictions, references)
-    print(corpus_scores)
+    #print("Cider:")
+    c_s, _ = cider_d(predictions, references)
+    #print(c_s)
 
-    print("SPICE:")
-    corpus_scores, _ = spice(predictions, references)
-    print(corpus_scores)
+    #print("SPICE:")
+    s_s, _ = spice(predictions, references)
+    #print(s_s)
 
-    return corpus_scores
+    return {"BLUE":next(iter(b_s.values())).item(),
+            "METEOR": next(iter(m_s.values())).item(),
+            "Cider": next(iter(c_s.values())).item(),
+            "SPICE":next(iter(s_s.values())).item(),}
 
 def eval_model(args):
     # Model
 
     answers = [json.loads(q) for q in open(os.path.expanduser(args.answers_file), "r")]
     #answers = json.load(open(os.path.expanduser(args.answers_file), "r"))
-    answers = get_chunk(answers, args.num_chunks, args.chunk_idx)
+    #answers = get_chunk(answers, args.num_chunks, args.chunk_idx)
     if args.annotation:
         if "captions_val2014.json" in args.annotation:
             coco = COCO(os.path.join(args.annotation))
         else:
             anno = json.load(open(os.path.join(args.annotation),'r'))
     if args.QA:
-        anno = json.load(open(os.path.join(args.QA),'r'))
+        anno = [json.loads(q) for q in open(os.path.expanduser(args.QA), "r")]
     references=[]        
     predictions=[]
     for i,line in enumerate(tqdm(answers)):
@@ -97,6 +100,7 @@ def eval_model(args):
                 #print(line['image_id'])
                 for an in anns:
                     caps.append(an['caption'])
+
             else:
                 caps = [anno[i]['caption']]
         if args.QA:
@@ -113,22 +117,12 @@ def eval_model(args):
         references.append(text)
         predictions.append(pre_caption(line["text"],max_words=args.max_words))
     print("finish geting data")
-    file_pre=open(f"./captioning_output/{args.model_name}/{args.max_words}/predictions.json",'w')
-    file_ref=open(f"./captioning_output/{args.model_name}/{args.max_words}/references.json",'w')
-    json.dump(predictions,file_pre)
-    json.dump(references,file_ref)
+    file_score=open(f"./evaluation/{args.model_name}_{args.dataset}.json",'w')
     predictions = preprocess_mono_sents(predictions)
-    references = preprocess_mult_sents(references)    
-    
-    # metrics = [
-    #     load_metric("bleu"),
-    #     load_metric("meteor"),
-    #     load_metric("cider")]
-    #print(references[0:5])
-    #print(predictions[0:5])
-    # print(len(references))
-    # print(len(predictions))
+    references = preprocess_mult_sents(references)
     scores=evaluate_caption(args, predictions=predictions,references=references)
+    print(scores)
+    json.dump(scores, file_score)
     #print(f"bleu@4:{scores['bleu']['score']}, meteor: {scores['meteor']['score']}, CiDer: {scores['cider']['score']}")
     
 if __name__ == "__main__":
@@ -140,6 +134,7 @@ if __name__ == "__main__":
     parser.add_argument("--chunk-idx", type=int, default=0)
     parser.add_argument("--max_words", type=int, default=20)
     parser.add_argument("--model_name", type=str, default="")
+    parser.add_argument("--dataset", type=str, default="")
     args = parser.parse_args()
 
     eval_model(args)

@@ -42,6 +42,7 @@ class LlavaLlamaForCausalLM(LlamaForCausalLM, LlavaMetaForCausalLM):
     config_class = LlavaConfig
 
     def __init__(self, config):
+        print("model config",config)
         super(LlamaForCausalLM, self).__init__(config)
         self.model = LlavaLlamaModel(config)
 

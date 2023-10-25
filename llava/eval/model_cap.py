@@ -26,66 +26,44 @@ def get_chunk(lst, n, k):
     chunks = split_list(lst, n)
     return chunks[k]
 
-def eval_elip(args):
-    model, _, transform = open_clip.create_model_and_transforms(
-        model_name="coca_ViT-L-14",
-        pretrained="mscoco_finetuned_laion2B-s13B-b90k"
-    )
-
-    # elip_model = elip_retrieval(pretrain_clip="ViT-L/14",
-    #                             pretrained="/home/gs4288/ELIP/output/ELIP-best/checkpoint_best.pth",
-    #                             device='cuda')
-    #elip_model=elip_model.to('cuda')
-    model=model.to('cuda')
-    #model.elip_model=elip_model
-    questions = [json.loads(q) for q in open(os.path.expanduser(args.question_file), "r")]
-    answers_file = os.path.expanduser(args.answers_file)
-    os.makedirs(os.path.dirname(answers_file), exist_ok=True)
-    ans_file = open(answers_file, "w")
-    for line in tqdm(questions):
-        image_file = line["image"]
-        img_id = line['image_id']
-        # label = line["label"]
-        # labels.append(label)
-
-        image = Image.open(os.path.join(args.image_folder, image_file)).convert("RGB")
-        im = transform(image).unsqueeze(0)
-        im=im.to('cuda')
-        with torch.no_grad(), torch.cuda.amp.autocast():
-            generated = model.generate(im, num_beam_groups=1)
-
-        answer = open_clip.decode(generated[0]).split("<end_of_text>")[0].replace("<start_of_text>", "")
-        ans_file.write(json.dumps({"text": answer, "image_id":img_id}) + "\n")
-        ans_file.flush()
-
-
-    ans_file.close()
 def eval_model(args):
     # Model
     disable_torch_init()
     model_path = os.path.expanduser(args.model_path)
     model_name = get_model_name_from_path(model_path)
     prompt_config = {
-                        "is_prompt_learning":True,
+                        "is_prompt_learning":args.pt,
                         "token_dim":4096,
                         "encoder_hidden_size":4096,
-                        "num_virtual_tokens":50,
+                        "num_virtual_tokens":args.ptlength,
                         "num_transformer_submodules":1,
                         "encoder_type": "MLP",
                         "inference_mode": False,
-                        "visual_prompt":False,
+                        "visual_prompt":args.pt_v,
                         "compound_prompts_depth":12}
-    tokenizer, model, image_processor, context_len = load_pretrained_model(model_path, args.model_base, model_name,device_map='auto',prompt_config=prompt_config)
+    visual_prompt_design={"trainer": 'MaPLe',
+                            "vision_depth": 0,
+                            "language_depth": 0, 
+                            "vision_ctx": 0,
+                            "language_ctx": 0,
+                            "maple_length": 10}
+    tokenizer, model, image_processor, context_len = load_pretrained_model(model_path, args.model_base, 
+                                                                           model_name,device_map='auto',
+                                                                           prompt_config=prompt_config,
+                                                                           design=visual_prompt_design)
 
     questions = [json.loads(q) for q in open(os.path.expanduser(args.question_file), "r")]
     questions = get_chunk(questions, args.num_chunks, args.chunk_idx)
     answers_file = os.path.expanduser(args.answers_file)
     os.makedirs(os.path.dirname(answers_file), exist_ok=True)
     ans_file = open(answers_file, "w")
+    if args.sq:
+        sq_prompt = ["VUSER: ", "ASSISTANT: "]
     for line in tqdm(questions):
         idx = line["question_id"]
         image_file = line["image"]
         qs = line["text"]
+        #print(line)
         #label = line["label"]
         #labels.append(label)
         cur_prompt = qs
@@ -102,27 +80,58 @@ def eval_model(args):
         input_ids = tokenizer_image_token(prompt, tokenizer, IMAGE_TOKEN_INDEX, return_tensors='pt').unsqueeze(0).cuda()
         image_path = os.path.join(args.image_folder, image_file)
         try:
-            image = Image.open(image_path)
+            image = Image.open(image_path).convert('RGB')
         except:
+            print("couldn't find image")
             continue
         image_tensor = image_processor.preprocess(image, return_tensors='pt')['pixel_values'][0]
 
         stop_str = conv.sep if conv.sep_style != SeparatorStyle.TWO else conv.sep2
         keywords = [stop_str]
         stopping_criteria = KeywordsStoppingCriteria(keywords, tokenizer, input_ids)
-
+        
         with torch.inference_mode():
             output_ids = model.generate(
                 input_ids,
                 images=image_tensor.unsqueeze(0).half().cuda(),
-                do_sample=True,
+                do_sample=args.do_sample,
                 temperature=args.temperature,
                 top_p=args.top_p,
                 num_beams=args.num_beams,
                 # no_repeat_ngram_size=3,
                 max_new_tokens=1024,
                 use_cache=True)
-
+            #print("output ids length: ",output_ids.shape)
+            # outputs = tokenizer.batch_decode(output_ids[:, input_ids.shape[1]:], skip_special_tokens=False)[0]
+            # outputs = outputs.strip()
+            # if outputs.endswith(stop_str):
+            #     outputs = outputs[:-len(stop_str)]
+            # outputs = outputs.strip()
+            # print(f"output of USER: {outputs}")
+        if args.sq:
+            for p in sq_prompt:
+                vusr_id = tokenizer(p).input_ids
+                vusr_id = torch.tensor(vusr_id[1:-1], dtype=torch.long,device=output_ids.device)
+                vusr_id=torch.unsqueeze(vusr_id,dim=0)
+                vusr_id=vusr_id.repeat(output_ids.shape[0],1)
+                input_ids = torch.cat((output_ids,vusr_id),dim=1)
+                output_ids = model.generate(
+                    input_ids,
+                    images=image_tensor.unsqueeze(0).half().cuda(),
+                    do_sample=args.do_sample,
+                    temperature=args.temperature,
+                    top_p=args.top_p,
+                    num_beams=args.num_beams,
+                    # no_repeat_ngram_size=3,
+                    max_new_tokens=1024,
+                    use_cache=True)
+                #print("output ids: ",output_ids[:, input_ids.shape[1]:])
+                # outputs = tokenizer.batch_decode(output_ids[:, input_ids.shape[1]:], skip_special_tokens=False)[0]
+                # outputs = outputs.strip()
+                # if outputs.endswith(stop_str):
+                #     outputs = outputs[:-len(stop_str)]
+                # outputs = outputs.strip()
+                # print(f"output of {p}{outputs}")
         input_token_len = input_ids.shape[1]
         n_diff_input_output = (input_ids != output_ids[:, :input_token_len]).sum().item()
         if n_diff_input_output > 0:
@@ -132,6 +141,7 @@ def eval_model(args):
         if outputs.endswith(stop_str):
             outputs = outputs[:-len(stop_str)]
         outputs = outputs.strip()
+        #print("outputs: ",outputs)
         #predictions.append(outputs)
         ans_id = shortuuid.uuid()
         ans_file.write(json.dumps({"question_id": idx,
@@ -157,8 +167,11 @@ if __name__ == "__main__":
     parser.add_argument("--temperature", type=float, default=0.2)
     parser.add_argument("--top_p", type=float, default=None)
     parser.add_argument("--num_beams", type=int, default=1)
+    parser.add_argument("--ptlength", type=int, default=10)
+    parser.add_argument('--pt', action='store_true')
+    parser.add_argument('--pt_v', action='store_true')
+    parser.add_argument("--sq", action="store_true")
+    parser.add_argument("--do_sample", action="store_true")
     args = parser.parse_args()
-    if args.model_path == "clip":
-        eval_elip(args)
-    else:
-        eval_model(args)
+    
+    eval_model(args)

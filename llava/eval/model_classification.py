@@ -10,11 +10,10 @@ from llava.conversation import conv_templates, SeparatorStyle
 from llava.model.builder import load_pretrained_model
 from llava.utils import disable_torch_init
 from llava.mm_utils import tokenizer_image_token, get_model_name_from_path, KeywordsStoppingCriteria
-from peft import PeftConfig, PeftModel
+
 from PIL import Image
 import math
 
-from keybert import KeyBERT
 
 def split_list(lst, n):
     """Split a list into n (roughly) equal-sized chunks"""
@@ -32,7 +31,7 @@ def eval_model(args):
     disable_torch_init()
     model_path = os.path.expanduser(args.model_path)
     model_name = get_model_name_from_path(model_path)
-    tokenizer, model, image_processor, context_len = load_pretrained_model(model_path, args.model_base, model_name,device_map='auto')
+    tokenizer, model, image_processor, context_len = load_pretrained_model(model_path, args.model_base, model_name)
 
     questions = [json.loads(q) for q in open(os.path.expanduser(args.question_file), "r")]
     questions = get_chunk(questions, args.num_chunks, args.chunk_idx)
@@ -41,7 +40,6 @@ def eval_model(args):
     ans_file = open(answers_file, "w")
     total = 0
     correct = 0
-    kw_model = KeyBERT()
     for line in tqdm(questions):
         idx = line["question_id"]
         image_file = line["image"]
@@ -88,22 +86,13 @@ def eval_model(args):
         if outputs.endswith(stop_str):
             outputs = outputs[:-len(stop_str)]
         outputs = outputs.strip()
-        print(outputs)
-        
-        if args.classfy == "extract":
-            # output = kw_model.extract_keywords(outputs, keyphrase_ngram_range=(1, 1), stop_words=["the","most","significant",
-            #                                                                                       "of","in","this","image","with",
-            #                                                                                       ",","which","a","and","is"])
-            output = kw_model.extract_keywords(outputs,keyphrase_ngram_range=(2, 2), stop_words='english',use_mmr=True,diversity=0.7)
-            output_label = output[0][0]
-        elif args.classfy == "simple":
-            output = outputs.strip(",.").split()
-            output_label = output[-1]
+        #print(outputs)
+        output = outputs.strip(",.").split()
+        output_label = output[-1]
         #print("prediction: ",output_label)
         #print("label: ",label)
-        if label in output_label.lower():
+        if output_label in label:
             correct +=1
-            #print("correct")
         total += 1
         ans_id = shortuuid.uuid()
         ans_file.write(json.dumps({"question_id": idx,
@@ -118,13 +107,12 @@ def eval_model(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model_path", type=str, default="facebook/opt-350m")
-    parser.add_argument("--model_base", type=str, default=None)
+    parser.add_argument("--model-path", type=str, default="facebook/opt-350m")
+    parser.add_argument("--model-base", type=str, default=None)
     parser.add_argument("--image-folder", type=str, default="")
     parser.add_argument("--question-file", type=str, default="tables/question.jsonl")
     parser.add_argument("--answers-file", type=str, default="answer.jsonl")
     parser.add_argument("--conv-mode", type=str, default="llava_v1")
-    parser.add_argument("--classfy", type=str, default=None)
     parser.add_argument("--num-chunks", type=int, default=1)
     parser.add_argument("--chunk-idx", type=int, default=0)
     parser.add_argument("--temperature", type=float, default=0.2)

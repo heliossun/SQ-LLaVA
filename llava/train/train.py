@@ -60,7 +60,8 @@ class ModelArguments:
     pre_trained_clip:str = field(default="ViT-L/14")
     visual_prompt:bool = field(default=False)
     pretrain_prompt_projector: Optional[str] = field(default=None)
-
+    encoder_type: Optional[str] = field(default="MLP")
+    mm_projector_type: Optional[str] = field(default='linear')
 
 @dataclass
 class DataArguments:
@@ -105,7 +106,7 @@ class TrainingArguments(transformers.TrainingArguments):
     lora_dropout: float = 0.05
     lora_weight_path: str = ""
     lora_bias: str = "none"
-
+    group_by_modality_length: bool = field(default=False)
     #prompt tuning settings
     pt_enable: bool = False
     pt_method: str = "prefix"   #prefix: prefix tuning, pt:p-tuning
@@ -155,6 +156,7 @@ def get_peft_state_non_lora_maybe_zero_3(named_params, require_grad_only=True):
     if require_grad_only:
         to_return = {k: t for k, t in to_return.items() if t.requires_grad}
     to_return = {k: maybe_zero_3(v, ignore_status=True).cpu() for k, v in to_return.items()}
+    print(to_return)
     return to_return
 
 
@@ -462,15 +464,25 @@ def preprocess_v1(
         for i, rou in enumerate(rounds):
             if rou == "":
                 break
-
+            # split to ["human: ***.GPT:", "****"]
+            ### example 1: ["A chat between a curious user and an artificial intelligence assistant.
+            # The assistant gives helpful, detailed, and polite answers to the user's questions.
+            # USER: <image>\nWhat is the color of the horse the woman is riding? ASSISTANT: ",
+            # 'The woman is riding a brown horse.']
+            # example 2: ['USER: What is the setting of the image? ASSISTANT: ',
+            # 'The setting of the image is a grassy field with woods in the background.']
             parts = rou.split(sep)
             if len(parts) != 2:
                 break
             parts[0] += sep
-
+            # print("<<<<<<tokenize something>>>>>>>")
+            # print("total length: ",len(tokenizer_image_token(rou, tokenizer)))
+            # for i in parts:
+            #     print(f"Tokenizing text '{i}', tokenizer 1: {len(tokenizer_image_token(i, tokenizer))}")
+            #print(f"current {i}conversation parts:{parts}")
             if has_image:
                 round_len = len(tokenizer_image_token(rou, tokenizer))
-                instruction_len = len(tokenizer_image_token(parts[0], tokenizer)) - 2
+                instruction_len = len(tokenizer_image_token(parts[0], tokenizer)) - 2 #question length
             else:
                 round_len = len(tokenizer(rou).input_ids)
                 instruction_len = len(tokenizer(parts[0]).input_ids) - 2
@@ -493,7 +505,108 @@ def preprocess_v1(
         labels=targets,
     )
 
+def preprocess_v1_sq(
+    sources,
+    tokenizer: transformers.PreTrainedTokenizer,
+    has_image: bool = False
+) -> Dict:
+    conv = conversation_lib.default_conversation.copy()
+    roles = {"human": conv.roles[0], "gpt": conv.roles[1], "v_human": conv.roles[2]}
 
+    # Apply prompt templates
+    conversations = []
+    for i, source in enumerate(sources):
+        if roles[source[0]["from"]] != conv.roles[0]:
+            # Skip the first one if it is not from human
+            source = source[1:]
+
+        conv.messages = []
+        #for j, sentence in enumerate(source):
+        question = source[0]
+        answer = source[1]
+        conv.append_message(roles["human"], question["value"])
+        conv.append_message(roles["gpt"], answer["value"])
+        conv.append_message(roles["v_human"], question["value"].replace("<image>\n","").replace("\n<image>","").strip()+conv.sep2)
+        conv.append_message(roles["gpt"], answer["value"])
+
+        #print("current conversation: ",conv.messages)
+        conversations.append(conv.get_prompt())
+
+    # Tokenize conversations
+
+    if has_image:
+        input_ids = torch.stack([tokenizer_image_token(prompt, tokenizer, return_tensors='pt') for prompt in conversations], dim=0)
+    else:
+        input_ids = tokenizer(
+            conversations,
+            return_tensors="pt",
+            padding="longest",
+            max_length=tokenizer.model_max_length,
+            truncation=True,
+        ).input_ids
+
+    targets = input_ids.clone()
+
+    assert conv.sep_style == conversation_lib.SeparatorStyle.TWO
+
+    # Mask targets
+    sep = conv.sep + conv.roles[1] + ": "
+    #sep2 = conv.sep + conv.roles[2] + ": "
+    for conversation, target in zip(conversations, targets):
+        total_len = int(target.ne(tokenizer.pad_token_id).sum())
+
+        rounds = conversation.split(conv.sep2)
+        cur_len = 1
+        target[:cur_len] = IGNORE_INDEX
+        for i, rou in enumerate(rounds):
+            #print("current len: ",cur_len)
+            if rou == "":
+                break
+            if i ==0:
+                #print("first QA: ",rou)
+                parts = rou.split(sep)
+                parts[0] += sep
+
+                if has_image:
+                    round_len = len(tokenizer_image_token(rou, tokenizer))
+                    instruction_len = len(tokenizer_image_token(parts[0], tokenizer)) - 2 #question length
+
+                else:
+                    round_len = len(tokenizer(rou).input_ids)
+                    instruction_len = len(tokenizer(parts[0]).input_ids) - 2
+                target[cur_len: cur_len + instruction_len] = IGNORE_INDEX
+                #print("target after first QA: ",target)
+                #print("current: ",target)
+            else:
+                round_len = len(tokenizer(rou).input_ids)
+                # start get length of predicted stuff and update target
+                split_c = rou.find(":") #find the first ':' of input
+                obj = rou[:split_c+2]
+                #print(f"this is a {obj}")
+                #print("its ids:",tokenizer(obj).input_ids)
+                target[cur_len:cur_len+len(tokenizer(obj).input_ids)-2]= IGNORE_INDEX
+                #print("current: ",target)
+                #content=rou[split_c+2:]
+                #print("***************")
+                #print(f"this is a {content}")
+                #print("its ids:",tokenizer(content).input_ids)
+                #print("--------------")
+                
+            cur_len += round_len
+        target[cur_len:] = IGNORE_INDEX
+        #print("final current: ",target)
+        if cur_len < tokenizer.model_max_length:
+            if cur_len != total_len:
+                target[:] = IGNORE_INDEX
+                print(
+                    f"WARNING: tokenization mismatch: {cur_len} vs. {total_len}."
+                    f" (ignored)"
+                )
+
+    return dict(
+        input_ids=input_ids,
+        labels=targets,
+    )
 def preprocess_mpt(
     sources,
     tokenizer: transformers.PreTrainedTokenizer,
@@ -598,6 +711,8 @@ def preprocess(
         return preprocess_plain(sources, tokenizer)
     if conversation_lib.default_conversation.sep_style == conversation_lib.SeparatorStyle.LLAMA_2:
         return preprocess_llama_2(sources, tokenizer, has_image=has_image)
+    if conversation_lib.default_conversation.version == "v1_sq":
+        return preprocess_v1_sq(sources, tokenizer, has_image=has_image)
     if conversation_lib.default_conversation.version.startswith("v1"):
         return preprocess_v1(sources, tokenizer, has_image=has_image)
     if conversation_lib.default_conversation.version == "mpt":
@@ -851,10 +966,12 @@ def train():
                 "encoder_hidden_size":4096,
                 "num_virtual_tokens":10,
                 "num_transformer_submodules":1,
-                "encoder_type": "MLP",
+                "encoder_type": model_args.encoder_type,
                 "inference_mode": False,
                 "visual_prompt":model_args.visual_prompt,
-                "compound_prompts_depth":12}
+                "compound_prompts_depth":24,
+                "encoder_dropout":0.8,
+                "encoder_num_layers":3,}
         model.get_model().initialize_prompt(config=prompt_config)
     design_details = {"trainer": 'MaPLe',
                       "vision_depth": 0,
@@ -894,7 +1011,10 @@ def train():
             conversation_lib.default_conversation = conversation_lib.conv_templates[model_args.version]
         else:
             conversation_lib.default_conversation = conversation_lib.conv_templates["vicuna_v1"]
-    
+        #print("conv version: ",conversation_lib.default_conversation)
+    #special_tokens_dict = {'additional_special_tokens': 'VUSER'}
+    #print("all special tokens", tokenizer.tokens)
+    #tokenizer.add_tokens(['VUSER'])
     if model_args.vision_tower is not None or model_args.propmt is not None:
         model.get_model().initialize_vision_modules(
             model_args=model_args,
@@ -929,10 +1049,10 @@ def train():
 
         if training_args.bits in [4, 8]:
             model.get_model().mm_projector.to(dtype=compute_dtype, device=training_args.device)
-        # print("trainable params:>>><<<")
-        # for name,param in model.get_model().named_parameters():
-        #     if param.requires_grad:
-        #         print(name)
+        print("trainable params:>>><<<")
+        for name,param in model.get_model().named_parameters():
+            if param.requires_grad:
+                print(name)
         model.config.mm_use_im_start_end = data_args.mm_use_im_start_end = model_args.mm_use_im_start_end
         training_args.use_im_start_end = model_args.mm_use_im_start_end
         model.config.mm_use_im_patch_token = model_args.mm_use_im_patch_token
