@@ -54,14 +54,11 @@ class ModelArguments:
     vision_tower: Optional[str] = field(default=None)
     mm_vision_select_layer: Optional[int] = field(default=-1)   # default to the last layer
     pretrain_mm_mlp_adapter: Optional[str] = field(default=None)
+    mm_projector_type: Optional[str] = field(default='linear')
     mm_use_im_start_end: bool = field(default=False)
     mm_use_im_patch_token: bool = field(default=True)
     mm_vision_select_feature: Optional[str] = field(default="patch")
-    pre_trained_clip:str = field(default="ViT-L/14")
-    visual_prompt:bool = field(default=False)
-    pretrain_prompt_projector: Optional[str] = field(default=None)
-    encoder_type: Optional[str] = field(default="MLP")
-    mm_projector_type: Optional[str] = field(default='linear')
+
 
 @dataclass
 class DataArguments:
@@ -106,10 +103,9 @@ class TrainingArguments(transformers.TrainingArguments):
     lora_dropout: float = 0.05
     lora_weight_path: str = ""
     lora_bias: str = "none"
+    mm_projector_lr: Optional[float] = None
     group_by_modality_length: bool = field(default=False)
-    #prompt tuning settings
-    pt_enable: bool = False
-    pt_method: str = "prefix"   #prefix: prefix tuning, pt:p-tuning
+
 
 def maybe_zero_3(param, ignore_status=False, name=None):
     from deepspeed import zero
@@ -125,7 +121,7 @@ def maybe_zero_3(param, ignore_status=False, name=None):
     return param
 
 
-# Borrowed from peft.utils.get_peft_model_state_dict prompt_encoder
+# Borrowed from peft.utils.get_peft_model_state_dict
 def get_peft_state_maybe_zero_3(named_params, bias):
     if bias == "none":
         to_return = {k: t for k, t in named_params if "lora_" in k}
@@ -147,7 +143,7 @@ def get_peft_state_maybe_zero_3(named_params, bias):
                 to_return[bias_name] = t
     else:
         raise NotImplementedError
-    to_return = {k: maybe_zero_3(v, name=k) for k, v in to_return.items()}
+    to_return = {k: maybe_zero_3(v, ignore_status=True) for k, v in to_return.items()}
     return to_return
 
 
@@ -156,7 +152,6 @@ def get_peft_state_non_lora_maybe_zero_3(named_params, require_grad_only=True):
     if require_grad_only:
         to_return = {k: t for k, t in to_return.items() if t.requires_grad}
     to_return = {k: maybe_zero_3(v, ignore_status=True).cpu() for k, v in to_return.items()}
-    print(to_return)
     return to_return
 
 
@@ -169,11 +164,13 @@ def get_mm_adapter_state_maybe_zero_3(named_params, keys_to_match):
 def find_all_linear_names(model):
     cls = torch.nn.Linear
     lora_module_names = set()
+    multimodal_keywords = ['mm_projector', 'vision_tower', 'vision_resampler']
     for name, module in model.named_modules():
+        if any(mm_keyword in name for mm_keyword in multimodal_keywords):
+            continue
         if isinstance(module, cls):
             names = name.split('.')
             lora_module_names.add(names[0] if len(names) == 1 else names[-1])
-
 
     if 'lm_head' in lora_module_names: # needed for 16-bit
         lora_module_names.remove('lm_head')
@@ -190,24 +187,20 @@ def safe_save_model_for_hf_trainer(trainer: transformers.Trainer,
         if getattr(trainer.args, "use_im_start_end", False):
             keys_to_match.extend(['embed_tokens', 'embed_in'])
 
-        weight_to_save_adapter = get_mm_adapter_state_maybe_zero_3(trainer.model.named_parameters(), keys_to_match)
+        weight_to_save = get_mm_adapter_state_maybe_zero_3(trainer.model.named_parameters(), keys_to_match)
         trainer.model.config.save_pretrained(output_dir)
-        weight_to_save_pt_encoder = get_mm_adapter_state_maybe_zero_3(trainer.model.named_parameters(), ['prompt'])
-        #print('pt encoder parameter:',weight_to_save_pt_encoder)
+
         current_folder = output_dir.split('/')[-1]
         parent_folder = os.path.dirname(output_dir)
         if trainer.args.local_rank == 0 or trainer.args.local_rank == -1:
             if current_folder.startswith('checkpoint-'):
                 mm_projector_folder = os.path.join(parent_folder, "mm_projector")
                 os.makedirs(mm_projector_folder, exist_ok=True)
-                torch.save(weight_to_save_adapter, os.path.join(mm_projector_folder, f'{current_folder}.bin'))
+                torch.save(weight_to_save, os.path.join(mm_projector_folder, f'{current_folder}.bin'))
             else:
-                torch.save(weight_to_save_adapter, os.path.join(output_dir, f'mm_projector.bin'))
-                torch.save(weight_to_save_pt_encoder, os.path.join(output_dir, f'pt_encoder.bin'))
+                torch.save(weight_to_save, os.path.join(output_dir, f'mm_projector.bin'))
         return
-    
-    
-    
+
     if trainer.deepspeed:
         torch.cuda.synchronize()
         trainer.save_model(output_dir)
@@ -278,7 +271,6 @@ def _tokenize_fn(strings: Sequence[str],
 def _mask_targets(target, tokenized_lens, speakers):
     # cur_idx = 0
     cur_idx = tokenized_lens[0]
-    print("current idx: ",cur_idx)
     tokenized_lens = tokenized_lens[1:]
     target[:cur_idx] = IGNORE_INDEX
     for tokenized_len, speaker in zip(tokenized_lens, speakers):
@@ -321,7 +313,7 @@ def preprocess_multimodal(
             if DEFAULT_IMAGE_TOKEN in sentence['value']:
                 sentence['value'] = sentence['value'].replace(DEFAULT_IMAGE_TOKEN, '').strip()
                 sentence['value'] = DEFAULT_IMAGE_TOKEN + '\n' + sentence['value']
-                sentence['value'] = sentence['value'].strip() #string.strip : remove white space, ,. at front and end of the text
+                sentence['value'] = sentence['value'].strip()
                 if "mmtag" in conversation_lib.default_conversation.version:
                     sentence['value'] = sentence['value'].replace(DEFAULT_IMAGE_TOKEN, '<Image>' + DEFAULT_IMAGE_TOKEN + '</Image>')
             replace_token = DEFAULT_IMAGE_TOKEN
@@ -464,25 +456,15 @@ def preprocess_v1(
         for i, rou in enumerate(rounds):
             if rou == "":
                 break
-            # split to ["human: ***.GPT:", "****"]
-            ### example 1: ["A chat between a curious user and an artificial intelligence assistant.
-            # The assistant gives helpful, detailed, and polite answers to the user's questions.
-            # USER: <image>\nWhat is the color of the horse the woman is riding? ASSISTANT: ",
-            # 'The woman is riding a brown horse.']
-            # example 2: ['USER: What is the setting of the image? ASSISTANT: ',
-            # 'The setting of the image is a grassy field with woods in the background.']
+
             parts = rou.split(sep)
             if len(parts) != 2:
                 break
             parts[0] += sep
-            # print("<<<<<<tokenize something>>>>>>>")
-            # print("total length: ",len(tokenizer_image_token(rou, tokenizer)))
-            # for i in parts:
-            #     print(f"Tokenizing text '{i}', tokenizer 1: {len(tokenizer_image_token(i, tokenizer))}")
-            #print(f"current {i}conversation parts:{parts}")
+
             if has_image:
                 round_len = len(tokenizer_image_token(rou, tokenizer))
-                instruction_len = len(tokenizer_image_token(parts[0], tokenizer)) - 2 #question length
+                instruction_len = len(tokenizer_image_token(parts[0], tokenizer)) - 2
             else:
                 round_len = len(tokenizer(rou).input_ids)
                 instruction_len = len(tokenizer(parts[0]).input_ids) - 2
@@ -505,37 +487,34 @@ def preprocess_v1(
         labels=targets,
     )
 
+
 def preprocess_v1_sq(
-    sources,
-    tokenizer: transformers.PreTrainedTokenizer,
-    has_image: bool = False
+        sources,
+        tokenizer: transformers.PreTrainedTokenizer,
+        has_image: bool = False
 ) -> Dict:
     conv = conversation_lib.default_conversation.copy()
-    roles = {"human": conv.roles[0], "gpt": conv.roles[1], "v_human": conv.roles[2]}
+    roles = {"human": conv.roles[0], "gpt": conv.roles[1], "vuser": conv.roles[2]}
 
     # Apply prompt templates
     conversations = []
     for i, source in enumerate(sources):
-        if roles[source[0]["from"]] != conv.roles[0]:
-            # Skip the first one if it is not from human
-            source = source[1:]
+        # if roles[source[0]["from"]] != conv.roles[0]:
+        #     # Skip the first one if it is not from human
+        #     source = source[1:]
 
         conv.messages = []
-        #for j, sentence in enumerate(source):
-        question = source[0]
-        answer = source[1]
-        conv.append_message(roles["human"], question["value"])
-        conv.append_message(roles["gpt"], answer["value"])
-        conv.append_message(roles["v_human"], question["value"].replace("<image>\n","").replace("\n<image>","").strip()+conv.sep2)
-        conv.append_message(roles["gpt"], answer["value"])
-
-        #print("current conversation: ",conv.messages)
+        for j, sentence in enumerate(source):
+            role = roles[sentence["from"]]
+            if sentence["from"] == "vuser":
+                conv.append_message(role, sentence["value"] + conv.sep2)
+            else:
+                conv.append_message(role, sentence["value"])
         conversations.append(conv.get_prompt())
 
-    # Tokenize conversations
-
     if has_image:
-        input_ids = torch.stack([tokenizer_image_token(prompt, tokenizer, return_tensors='pt') for prompt in conversations], dim=0)
+        input_ids = torch.stack(
+            [tokenizer_image_token(prompt, tokenizer, return_tensors='pt') for prompt in conversations], dim=0)
     else:
         input_ids = tokenizer(
             conversations,
@@ -551,7 +530,6 @@ def preprocess_v1_sq(
 
     # Mask targets
     sep = conv.sep + conv.roles[1] + ": "
-    #sep2 = conv.sep + conv.roles[2] + ": "
     for conversation, target in zip(conversations, targets):
         total_len = int(target.ne(tokenizer.pad_token_id).sum())
 
@@ -559,43 +537,32 @@ def preprocess_v1_sq(
         cur_len = 1
         target[:cur_len] = IGNORE_INDEX
         for i, rou in enumerate(rounds):
-            #print("current len: ",cur_len)
             if rou == "":
                 break
-            if i ==0:
-                #print("first QA: ",rou)
+            if i > 0:  # QAs after VUSER: ...
                 parts = rou.split(sep)
+                if len(parts) != 2:
+                    break
                 parts[0] += sep
-
-                if has_image:
-                    round_len = len(tokenizer_image_token(rou, tokenizer))
-                    instruction_len = len(tokenizer_image_token(parts[0], tokenizer)) - 2 #question length
-
-                else:
-                    round_len = len(tokenizer(rou).input_ids)
-                    instruction_len = len(tokenizer(parts[0]).input_ids) - 2
-                target[cur_len: cur_len + instruction_len] = IGNORE_INDEX
-                #print("target after first QA: ",target)
-                #print("current: ",target)
-            else:
+                # if has_image:
+                #     round_len = len(tokenizer_image_token(rou, tokenizer))
+                #     instruction_len = len(tokenizer_image_token(parts[0], tokenizer)) - 2
+                # else:
                 round_len = len(tokenizer(rou).input_ids)
-                # start get length of predicted stuff and update target
-                split_c = rou.find(":") #find the first ':' of input
-                obj = rou[:split_c+2]
-                #print(f"this is a {obj}")
-                #print("its ids:",tokenizer(obj).input_ids)
-                target[cur_len:cur_len+len(tokenizer(obj).input_ids)-2]= IGNORE_INDEX
-                #print("current: ",target)
-                #content=rou[split_c+2:]
-                #print("***************")
-                #print(f"this is a {content}")
-                #print("its ids:",tokenizer(content).input_ids)
-                #print("--------------")
-                
+                instruction_len = len(tokenizer(parts[0]).input_ids) - 2
+                target[cur_len: cur_len + instruction_len] = IGNORE_INDEX
+            else:
+                round_len = len(tokenizer_image_token(rou, tokenizer))
+                temp_sep = "<image>\n"
+                parts = rou.split(temp_sep)  # find the first <image> of input
+                parts[0]+= temp_sep
+                instruction_len = len(tokenizer_image_token(parts[0],tokenizer))
+                target[cur_len: cur_len + instruction_len] = IGNORE_INDEX
             cur_len += round_len
+            #print(f"current target at round {i}: {target}")
         target[cur_len:] = IGNORE_INDEX
-        #print("final current: ",target)
-        if cur_len < tokenizer.model_max_length:
+
+        if cur_len < tokenizer.model_max_length: # max length 2048
             if cur_len != total_len:
                 target[:] = IGNORE_INDEX
                 print(
@@ -722,7 +689,6 @@ def preprocess(
     for source in sources:
         header = f"{conversation_lib.default_conversation.system}\n\n"
         conversation = _add_speaker_and_signal(header, source)
-        print("conversation: ",conversation)
         conversations.append(conversation)
     # tokenize conversations
     def get_tokenize_len(prompts):
@@ -734,16 +700,15 @@ def preprocess(
         conversations_tokenized = _tokenize_fn(conversations, tokenizer)
         input_ids = conversations_tokenized["input_ids"]
 
-    targets = copy.deepcopy(input_ids) # why? what is input_ids
+    targets = copy.deepcopy(input_ids)
     for target, source in zip(targets, sources):
         if has_image:
             tokenized_lens = get_tokenize_len([header] + [s["value"] for s in source])
         else:
             tokenized_lens = _tokenize_fn([header] + [s["value"] for s in source], tokenizer)["input_ids_lens"]
-        print("tokenized_length: ",tokenized_lens)
         speakers = [sentence["from"] for sentence in source]
         _mask_targets(target, tokenized_lens, speakers)
-    print("targets: ",targets)
+
     return dict(input_ids=input_ids, labels=targets)
 
 
@@ -763,6 +728,23 @@ class LazySupervisedDataset(Dataset):
 
     def __len__(self):
         return len(self.list_data_dict)
+
+    @property
+    def lengths(self):
+        length_list = []
+        for sample in self.list_data_dict:
+            img_tokens = 128 if 'image' in sample else 0
+            length_list.append(sum(len(conv['value'].split()) for conv in sample['conversations']) + img_tokens)
+        return length_list
+
+    @property
+    def modality_lengths(self):
+        length_list = []
+        for sample in self.list_data_dict:
+            cur_len = sum(len(conv['value'].split()) for conv in sample['conversations'])
+            cur_len = cur_len if 'image' in sample else -cur_len
+            length_list.append(cur_len)
+        return length_list
 
     def __getitem__(self, i) -> Dict[str, torch.Tensor]:
         sources = self.list_data_dict[i]
@@ -886,20 +868,7 @@ def train():
                 bnb_4bit_quant_type=training_args.quant_type # {'fp4', 'nf4'}
             )
         ))
-    # if training_args.pt_enable:
-    #     rank0_print("<<<<<<<<<<<<<Adding learnable prompts...>>>>>>>>>>>>>>>>>")
-    #     if training_args.pt_method == "pt":
-    #         prompt_config = {
-    #             "is_prompt_learning":True,
-    #             "token_dim":4096,
-    #             "encoder_hidden_size":4096,
-    #             "num_virtual_tokens":10,
-    #             "num_transformer_submodules":1,
-    #             "encoder_type": "LSTM",
-    #             "inference_mode": False,}
-    # else:
-    #     prompt_config={"is_prompt_learning":False}
-    
+
     if model_args.vision_tower is not None:
         if 'mpt' in model_args.model_name_or_path:
             config = transformers.AutoConfig.from_pretrained(model_args.model_name_or_path, trust_remote_code=True)
@@ -958,28 +927,6 @@ def train():
         rank0_print("Adding LoRA adapters...")
         model = get_peft_model(model, lora_config)
 
-    if training_args.pt_enable:
-        # num_virtual_tokens = maple_length
-        prompt_config = {
-                "is_prompt_learning":True,
-                "token_dim":4096,
-                "encoder_hidden_size":4096,
-                "num_virtual_tokens":10,
-                "num_transformer_submodules":1,
-                "encoder_type": model_args.encoder_type,
-                "inference_mode": False,
-                "visual_prompt":model_args.visual_prompt,
-                "compound_prompts_depth":24,
-                "encoder_dropout":0.8,
-                "encoder_num_layers":3,}
-        model.get_model().initialize_prompt(config=prompt_config)
-    design_details = {"trainer": 'MaPLe',
-                      "vision_depth": 0,
-                      "language_depth": 0, 
-                      "vision_ctx": 0,
-                      "language_ctx": 0,
-                      "maple_length": 10}
-        
     if 'mpt' in model_args.model_name_or_path:
         tokenizer = transformers.AutoTokenizer.from_pretrained(
             model_args.model_name_or_path,
@@ -1011,19 +958,15 @@ def train():
             conversation_lib.default_conversation = conversation_lib.conv_templates[model_args.version]
         else:
             conversation_lib.default_conversation = conversation_lib.conv_templates["vicuna_v1"]
-        #print("conv version: ",conversation_lib.default_conversation)
-    #special_tokens_dict = {'additional_special_tokens': 'VUSER'}
-    #print("all special tokens", tokenizer.tokens)
-    #tokenizer.add_tokens(['VUSER'])
-    if model_args.vision_tower is not None or model_args.propmt is not None:
+
+    if model_args.vision_tower is not None:
         model.get_model().initialize_vision_modules(
             model_args=model_args,
-            design_details=design_details,
             fsdp=training_args.fsdp
         )
         
         vision_tower = model.get_vision_tower()
-        vision_tower.to(dtype=torch.float16, device=training_args.device)
+        vision_tower.to(dtype=torch.bfloat16 if training_args.bf16 else torch.float16, device=training_args.device)
 
         data_args.image_processor = vision_tower.image_processor
         data_args.is_multimodal = True
@@ -1036,12 +979,7 @@ def train():
             model.requires_grad_(False)
             for p in model.get_model().mm_projector.parameters():
                 p.requires_grad = True
-        if training_args.pt_enable:
-            for p in model.get_model().prompt_encoder.parameters():
-                p.requires_grad = True
-            if model_args.visual_prompt:
-                for p in model.get_model().prompt_projector.parameters():
-                    p.requires_grad = True
+
         model.config.freeze_mm_mlp_adapter = training_args.freeze_mm_mlp_adapter
         if training_args.freeze_mm_mlp_adapter:
             for p in model.get_model().mm_projector.parameters():
@@ -1049,11 +987,9 @@ def train():
 
         if training_args.bits in [4, 8]:
             model.get_model().mm_projector.to(dtype=compute_dtype, device=training_args.device)
-        print("trainable params:>>><<<")
-        for name,param in model.get_model().named_parameters():
-            if param.requires_grad:
-                print(name)
+
         model.config.mm_use_im_start_end = data_args.mm_use_im_start_end = model_args.mm_use_im_start_end
+        model.config.mm_projector_lr = training_args.mm_projector_lr
         training_args.use_im_start_end = model_args.mm_use_im_start_end
         model.config.mm_use_im_patch_token = model_args.mm_use_im_patch_token
         model.initialize_vision_tokenizer(model_args, tokenizer=tokenizer)
@@ -1073,7 +1009,6 @@ def train():
 
     data_module = make_supervised_data_module(tokenizer=tokenizer,
                                               data_args=data_args)
-    
     trainer = LLaVATrainer(model=model,
                     tokenizer=tokenizer,
                     args=training_args,
@@ -1098,12 +1033,6 @@ def train():
             model.config.save_pretrained(training_args.output_dir)
             model.save_pretrained(training_args.output_dir, state_dict=state_dict)
             torch.save(non_lora_state_dict, os.path.join(training_args.output_dir, 'non_lora_trainables.bin'))
-    
-    # if training_args.pt_enable:
-    #     state_dict = get_peft_state_maybe_zero_3(
-    #         model.named_parameters())
-    #     if training_args.local_rank == 0 or training_args.local_rank == -1:
-    #         model.config.save_pretrained(training_args.output_dir)
     else:
         safe_save_model_for_hf_trainer(trainer=trainer,
                                        output_dir=training_args.output_dir)

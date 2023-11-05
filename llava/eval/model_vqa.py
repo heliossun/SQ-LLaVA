@@ -40,7 +40,7 @@ def eval_model(args):
     ans_file = open(answers_file, "w")
     for line in tqdm(questions):
         idx = line["question_id"]
-        image_file = "COCO_val2014_"+line["image"]
+        image_file = line["image"]
         qs = line["text"]
         cur_prompt = qs
         if model.config.mm_use_im_start_end:
@@ -66,7 +66,7 @@ def eval_model(args):
             output_ids = model.generate(
                 input_ids,
                 images=image_tensor.unsqueeze(0).half().cuda(),
-                do_sample=True,
+                do_sample=True if args.temperature > 0 else False,
                 temperature=args.temperature,
                 top_p=args.top_p,
                 num_beams=args.num_beams,
@@ -83,7 +83,7 @@ def eval_model(args):
         if outputs.endswith(stop_str):
             outputs = outputs[:-len(stop_str)]
         outputs = outputs.strip()
-        #print(outputs)
+
         ans_id = shortuuid.uuid()
         ans_file.write(json.dumps({"question_id": idx,
                                    "prompt": cur_prompt,

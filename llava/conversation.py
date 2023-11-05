@@ -129,7 +129,7 @@ class Conversation:
                                 result.paste(pil_img, ((height - width) // 2, 0))
                                 return result
                         image = expand2square(image)
-                    elif image_process_mode == "Crop":
+                    elif image_process_mode in ["Default", "Crop"]:
                         pass
                     elif image_process_mode == "Resize":
                         image = image.resize((336, 336))
@@ -141,11 +141,12 @@ class Conversation:
                     shortest_edge = int(min(max_len / aspect_ratio, min_len, min_hw))
                     longest_edge = int(shortest_edge * aspect_ratio)
                     W, H = image.size
-                    if H > W:
-                        H, W = longest_edge, shortest_edge
-                    else:
-                        H, W = shortest_edge, longest_edge
-                    image = image.resize((W, H))
+                    if longest_edge != max(image.size):
+                        if H > W:
+                            H, W = longest_edge, shortest_edge
+                        else:
+                            H, W = shortest_edge, longest_edge
+                        image = image.resize((W, H))
                     if return_pil:
                         images.append(image)
                     else:
@@ -178,10 +179,8 @@ class Conversation:
                     image.save(buffered, format="JPEG")
                     img_b64_str = base64.b64encode(buffered.getvalue()).decode()
                     img_str = f'<img src="data:image/png;base64,{img_b64_str}" alt="user upload image" />'
-                    ret.append([img_str, None])
-                    msg = msg.replace('<image>', '').strip()
-                    if len(msg) > 0:
-                        ret.append([msg, None])
+                    msg = img_str + msg.replace('<image>', '').strip()
+                    ret.append([msg, None])
                 else:
                     ret.append([msg, None])
             else:
@@ -264,6 +263,8 @@ conv_vicuna_v1 = Conversation(
 
 conv_vicuna_v1_sq = Conversation(
     system="A chat between a curious user and an artificial intelligence assistant. "
+           "The vuser is an artifical intelligence user, asks a question based on given information, the "
+           "question should be accurate and detailed."
     "The assistant gives helpful, detailed, and polite answers to the user's questions.",
     roles=("USER", "ASSISTANT", "VUSER"),
     version="v1_sq",
@@ -273,19 +274,6 @@ conv_vicuna_v1_sq = Conversation(
     sep=" ",
     sep2="</s>",
 )
-
-conv_vicuna_v1_aq = Conversation(
-    system="A chat between a curious user and an artificial intelligence assistant. "
-    "The user gives helpful, detailed, and polite answers, the assistant should ask one question that can be answered with the user's answers.",
-    roles=("USER", "ASSISTANT"),
-    version="v1",
-    messages=(),
-    offset=0,
-    sep_style=SeparatorStyle.TWO,
-    sep=" ",
-    sep2="</s>",
-)
-
 
 conv_llama_2 = Conversation(
     system="""You are a helpful, respectful and honest assistant. Always answer as helpfully as possible, while being safe.  Your answers should not include any harmful, unethical, racist, sexist, toxic, dangerous, or illegal content. Please ensure that your responses are socially unbiased and positive in nature.
@@ -339,10 +327,8 @@ conv_llava_v0 = Conversation(
            "The assistant gives helpful, detailed, and polite answers to the human's questions.",
     roles=("Human", "Assistant"),
     messages=(
-        ("Human", "Hi!"),
-        ("Assistant", "Hi there! How can I help you today?")
     ),
-    offset=2,
+    offset=0,
     sep_style=SeparatorStyle.SINGLE,
     sep="###",
 )
@@ -385,28 +371,13 @@ conv_llava_v1_mmtag = Conversation(
     version="v1_mmtag",
 )
 
-conv_self_q = Conversation(
-    system="A chat between a curious user and an artificial intelligence assistant. "
-           "The assistant is able to understand the visual content that the user provides, and assist the user with a variety of tasks using natural language."
-           "The visual content will be provided with the following format: <Image>visual content</Image>."
-           "The visual content may be an art style picture.",
-    roles=("USER", "ASSISTANT"),
-    messages=(),
-    offset=0,
-    sep_style=SeparatorStyle.TWO,
-    sep=" ",
-    sep2="</s>",
-    version="v1_mmtag",
-)
-
-default_conversation = conv_vicuna_v0
+default_conversation = conv_vicuna_v1
 conv_templates = {
     "default": conv_vicuna_v0,
     "v0": conv_vicuna_v0,
     "v1": conv_vicuna_v1,
-    "v1_aq": conv_vicuna_v1_aq,
-    "v1_sq": conv_vicuna_v1_sq,
     "vicuna_v1": conv_vicuna_v1,
+    "v1_sq": conv_vicuna_v1_sq,
     "llama_2": conv_llama_2,
 
     "plain": conv_llava_plain,
@@ -418,7 +389,6 @@ conv_templates = {
     "llava_llama_2": conv_llava_llama_2,
 
     "mpt": conv_mpt,
-    "selfQ_mmtag": conv_self_q,
 }
 
 

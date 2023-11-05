@@ -14,6 +14,7 @@
 
 
 import os
+import warnings
 import shutil
 
 from transformers import AutoTokenizer, AutoModelForCausalLM, AutoConfig, BitsAndBytesConfig
@@ -22,7 +23,7 @@ from llava.model import *
 from llava.constants import DEFAULT_IMAGE_PATCH_TOKEN, DEFAULT_IM_START_TOKEN, DEFAULT_IM_END_TOKEN
 
 
-def load_pretrained_model(model_path, model_base, model_name, load_8bit=False, load_4bit=False, device_map="cpu",prompt_config=None,design=None,pre_trained_clip="ViT-L/14"):
+def load_pretrained_model(model_path, model_base, model_name, load_8bit=False, load_4bit=False, device_map="auto", device="cuda"):
     kwargs = {"device_map": device_map}
 
     if load_8bit:
@@ -40,8 +41,8 @@ def load_pretrained_model(model_path, model_base, model_name, load_8bit=False, l
 
     if 'llava' in model_name.lower():
         # Load LLaVA model
-        
-
+        if 'lora' in model_name.lower() and model_base is None:
+            warnings.warn('There is `lora` in model name but no `model_base` is provided. If you are loading a LoRA model, please provide the `model_base` argument. Detailed instruction: https://github.com/haotian-liu/LLaVA#launch-a-model-worker-lora-weights-unmerged.')
         if 'lora' in model_name.lower() and model_base is not None:
             lora_cfg_pretrained = AutoConfig.from_pretrained(model_path)
             tokenizer = AutoTokenizer.from_pretrained(model_base, use_fast=False)
@@ -55,7 +56,6 @@ def load_pretrained_model(model_path, model_base, model_name, load_8bit=False, l
             print('Loading additional LLaVA weights...')
             if os.path.exists(os.path.join(model_path, 'non_lora_trainables.bin')):
                 non_lora_trainables = torch.load(os.path.join(model_path, 'non_lora_trainables.bin'), map_location='cpu')
-                #print("non lora weights: ", non_lora_trainables.keys())
             else:
                 # this is probably from HF Hub
                 from huggingface_hub import hf_hub_download
@@ -69,35 +69,16 @@ def load_pretrained_model(model_path, model_base, model_name, load_8bit=False, l
             non_lora_trainables = {(k[11:] if k.startswith('base_model.') else k): v for k, v in non_lora_trainables.items()}
             if any(k.startswith('model.model.') for k in non_lora_trainables):
                 non_lora_trainables = {(k[6:] if k.startswith('model.') else k): v for k, v in non_lora_trainables.items()}
-            if 'pt' in model_name.lower():
-                model.model.initialize_prompt(config=prompt_config)
-            #print("non lora weights: ", non_lora_trainables.keys())
-            model.load_state_dict(non_lora_trainables, strict=False)   
-            if os.path.exists(os.path.join(model_path, 'mm_projector.bin')):
-                print('Loading additional mm projector')
-                mm_projector_weights = torch.load(os.path.join(model_path, 'mm_projector.bin'), map_location='cpu')
-                mm_projector_weights = {k: v.to(torch.float16) for k, v in mm_projector_weights.items()}
-                model.load_state_dict(mm_projector_weights, strict=False)
+            model.load_state_dict(non_lora_trainables, strict=False)
+
             from peft import PeftModel
             print('Loading LoRA weights...')
             model = PeftModel.from_pretrained(model, model_path)
             print('Merging LoRA weights...')
             model = model.merge_and_unload()
             print('Model is loaded...')
-
-            # if os.path.exists(os.path.join(model_path, 'pt_encoder.bin')):
-            #     pt_encoder = torch.load(os.path.join(model_path, 'pt_encoder.bin'), map_location='cpu')
-            #     pt_encoder = {k: v.to(torch.float16) for k, v in pt_encoder.items()}
-            #     model.load_state_dict(pt_encoder, strict=False)
-            # if os.path.exists(os.path.join(model_path, 'mm_projector.bin')):
-            #     mm_projector_weights = torch.load(os.path.join(model_path, 'mm_projector.bin'), map_location='cpu')
-            #     mm_projector_weights = {k: v.to(torch.float16) for k, v in mm_projector_weights.items()}
-            #     model.load_state_dict(mm_projector_weights, strict=False)
-            
-            
-            
         elif model_base is not None:
-            # this may be mm projector and proompt encoder
+            # this may be mm projector only
             print('Loading LLaVA from base model...')
             if 'mpt' in model_name.lower():
                 if not os.path.isfile(os.path.join(model_path, 'configuration_mpt.py')):
@@ -109,26 +90,10 @@ def load_pretrained_model(model_path, model_base, model_name, load_8bit=False, l
                 tokenizer = AutoTokenizer.from_pretrained(model_base, use_fast=False)
                 cfg_pretrained = AutoConfig.from_pretrained(model_path)
                 model = LlavaLlamaForCausalLM.from_pretrained(model_base, low_cpu_mem_usage=True, config=cfg_pretrained, **kwargs)
-            # load mm projector
-            if os.path.exists(os.path.join(model_path, 'mm_projector.bin')):
-                mm_projector_weights = torch.load(os.path.join(model_path, 'mm_projector.bin'), map_location='cpu')
-                mm_projector_weights = {k: v.to(torch.float16) for k, v in mm_projector_weights.items()}
-                model.load_state_dict(mm_projector_weights, strict=False)
-            # load prompt encoder
-            if 'pt' in model_name.lower():
-                if os.path.exists(os.path.join(model_path, 'pt_encoder.bin')):
-                    print('Loading prompt encoder')
-                    model.model.initialize_prompt(config=prompt_config)
-                    if prompt_config['visual_prompt']:
-                        model.model.initialize_clip(design, pre_trained_clip)
-                    pt_encoder = torch.load(os.path.join(model_path, 'pt_encoder.bin'), map_location='cpu')
-                    pt_encoder = {k: v.to(torch.float16) for k, v in pt_encoder.items()}
-                    print("pt encoder weights:",pt_encoder.keys())
-                    model.load_state_dict(pt_encoder, strict=False)
 
-                    # for name,param in model.named_parameters():
-                    #     if param.dtype==torch.float:
-                    #         print(name)
+            mm_projector_weights = torch.load(os.path.join(model_path, 'mm_projector.bin'), map_location='cpu')
+            mm_projector_weights = {k: v.to(torch.float16) for k, v in mm_projector_weights.items()}
+            model.load_state_dict(mm_projector_weights, strict=False)
         else:
             if 'mpt' in model_name.lower():
                 tokenizer = AutoTokenizer.from_pretrained(model_path, use_fast=True)
@@ -172,7 +137,7 @@ def load_pretrained_model(model_path, model_base, model_name, load_8bit=False, l
         vision_tower = model.get_vision_tower()
         if not vision_tower.is_loaded:
             vision_tower.load_model()
-        vision_tower.to(device='cuda', dtype=torch.float16)
+        vision_tower.to(device=device, dtype=torch.float16)
         image_processor = vision_tower.image_processor
 
     if hasattr(model.config, "max_sequence_length"):

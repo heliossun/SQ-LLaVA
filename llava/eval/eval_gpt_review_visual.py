@@ -12,7 +12,7 @@ def get_eval(content: str, max_tokens: int):
     while True:
         try:
             response = openai.ChatCompletion.create(
-                model='gpt-4-0613',
+                model='gpt-4-0314',
                 messages=[{
                     'role': 'system',
                     'content': 'You are a helpful and precise assistant for checking the quality of the answer.'
@@ -97,7 +97,6 @@ if __name__ == '__main__':
                    f'[{role} 1]\n{ans1["text"]}\n\n[End of {role} 1]\n\n'
                    f'[{role} 2]\n{ans2["text"]}\n\n[End of {role} 2]\n\n'
                    f'[System]\n{prompt}\n\n')
-        #print(content)
         cur_js = {
             'id': idx+1,
             'question_id': ques['question_id'],
@@ -106,11 +105,8 @@ if __name__ == '__main__':
             'category': category
         }
         if idx >= len(cur_reviews):
-            #print("<<<<<review>>>>>")
             review = get_eval(content, args.max_tokens)
-            #print("review:<<<<<>>>>>",review)
             scores = parse_score(review)
-            #print("score:<<<<<>>>>>",scores)
             cur_js['content'] = review
             cur_js['tuple'] = scores
             review_file.write(json.dumps(cur_js) + '\n')
