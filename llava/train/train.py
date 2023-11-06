@@ -536,6 +536,7 @@ def preprocess_v1_sq(
         rounds = conversation.split(conv.sep2)
         cur_len = 1
         target[:cur_len] = IGNORE_INDEX
+        print(f"initial target: {target}")
         for i, rou in enumerate(rounds):
             if rou == "":
                 break
@@ -556,10 +557,10 @@ def preprocess_v1_sq(
                 temp_sep = "<image>\n"
                 parts = rou.split(temp_sep)  # find the first <image> of input
                 parts[0]+= temp_sep
-                instruction_len = len(tokenizer_image_token(parts[0],tokenizer))
+                instruction_len = len(tokenizer_image_token(parts[0],tokenizer))-1
                 target[cur_len: cur_len + instruction_len] = IGNORE_INDEX
             cur_len += round_len
-            #print(f"current target at round {i}: {target}")
+
         target[cur_len:] = IGNORE_INDEX
 
         if cur_len < tokenizer.model_max_length: # max length 2048

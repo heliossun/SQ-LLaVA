@@ -105,82 +105,162 @@
 
 ###### LLaMA-2 pt eval
 #flickr
-# CUDA_VISIBLE_DEVICES=1 python llava/eval/model_cap.py \
-#     --model_path ./checkpoints/llava-llava-vicuna-7b-lora-pt\
-# 	--model_base ./checkpoints/llava-vicuna-7b-lora \
-# 	--question-file ./playground/flickr/question3.jsonl \
-# 	--image-folder /home/gs4288/data/Flickr/flickr30k_images\
-# 	--answers-file ./output/flickr/ptlength50/answer_vc_pt_lora_sq2.jsonl \
-# 	--conv-mode="v1" \
-# 	--pt \
-# 	--ptlength 10
+ CUDA_VISIBLE_DEVICES=1 python llava/eval/model_cap.py \
+     --model_path ./checkpoints/llava-v1.5-7b-lora-sq-2e4\
+ 	--model_base lmsys/vicuna-7b-v1.5 \
+ 	--question-file ./playground/flickr/question3.jsonl \
+ 	--image-folder /home/gs4288/data/Flickr/flickr30k_images\
+ 	--answers-file ./output/flickr/answer_llava1-5_sq_v2.jsonl \
+ 	--conv-mode="v1" \
+    	--temperature 0 \
 
-# python llava/eval/eval_image_caption.py \
-# 	--answers-file ./output/flickr/ptlength50/answer_vc_pt_lora_sq2.jsonl\
-# 	--annotation /home/gs4288/data/Flickr/annotations/flickr30k_test.json\
-# 	--max_words 50\
-# 	--model_name "llava_lm2_lora-pt"
+  python llava/eval/eval_image_caption.py \
+  	--answers-file ./output/flickr/answer_llava1-5_sq_v2.jsonl\
+  	--annotation /home/gs4288/data/Flickr/annotations/flickr30k_test.json\
+  	--model_name "llava_vc1-5-lora_sq_v2" \
+  	--dataset "flickr"
 
 # CUDA_VISIBLE_DEVICES=1 python llava/eval/model_cap.py \
-#     --model_path ./checkpoints/llava-llava-v1.5-7b-pt-lr2e5\
-# 	--model_base ./checkpoints/llava-v1.5-7b\
+#     --model_path ./checkpoints/llava-v1.5-7b\
 # 	--question-file ./playground/flickr/question3.jsonl \
 # 	--image-folder /home/gs4288/data/Flickr/flickr30k_images\
 # 	--answers-file ./output/flickr/answer_llava1-5.jsonl \
 # 	--conv-mode="v1" \
 # 	--temperature 0 \
-
+#
 # python llava/eval/eval_image_caption.py \
 # 	--answers-file ./output/flickr/answer_llava1-5.jsonl\
 # 	--annotation /home/gs4288/data/Flickr/annotations/flickr30k_test.json\
 # 	--model_name "llava_vc1-5" \
 # 	--dataset "flickr"
 
-#CUDA_VISIBLE_DEVICES=1 python llava/eval/model_cap.py \
-#    --model_path ./checkpoints/llava-llava-v1.5-7b-pt-lr2e5\
-#	--model_base ./checkpoints/llava-v1.5-7b\
-#	--question-file ./playground/coco/question3.jsonl \
+# CUDA_VISIBLE_DEVICES=1 python llava/eval/model_cap.py \
+#    --model_path ./checkpoints/llava-v1.5-7b-lora-336\
+# 	--model_base ./checkpoints/llava-v1.5-7b\
+# 	--question-file ./playground/coco/question3.jsonl \
 # 	--image-folder /home/gs4288/data/coco2014/images\
 # 	--answers-file ./output/coco/answer_llava1-5.jsonl \
-#	--conv-mode="v1" \
-#	--temperature 0 \
-#
-#python llava/eval/eval_image_caption.py \
-#	--answers-file ./output/coco/answer_llava1-5.jsonl\
-#	--annotation /home/gs4288/data/coco2014/annotations/coco_karpathy_test.json\
-#	--model_name "llava_vc1-5" \
-#	--dataset "coco"
+# 	--conv-mode="v1" \
+# 	--temperature 0 \
+
+# python llava/eval/eval_image_caption.py \
+# 	--answers-file ./output/coco/answer_llava1-5.jsonl\
+# 	--annotation /home/gs4288/data/coco2014/annotations/coco_karpathy_test.json\
+# 	--model_name "llava_vc1-5_lora" \
+# 	--dataset "coco"
 
 	#nocaps
-	CUDA_VISIBLE_DEVICES=0 python llava/eval/model_cap.py \
-   --model_path ./checkpoints/llava-llava-v1.5-7b-pt-lr2e5\
-    --model_base ./checkpoints/llava-v1.5-7b\
-   	--question-file ./playground/nocaps/near-domain_question.jsonl \
-   	--image-folder /home/gs4288/data/nocaps/images/near-domain\
-   	--answers-file ./output/nocaps/nd_answer_llava1-5.jsonl \
-   	--conv-mode="v1" \
-  	--temperature 0 \
 
- python llava/eval/eval_image_caption.py \
- 	--answers-file ./output/nocaps/od_answer_llava1-5.jsonl\
- 	--annotation /home/gs4288/data/nocaps/nocaps_val_near_domain.json\
- 	--model_name "llava_vc1-5-pt" \
- 	--dataset "nocap_near_d"
 
-   CUDA_VISIBLE_DEVICES=0 python llava/eval/model_cap.py \
-   --model_path ./checkpoints/llava-llava-v1.5-7b-pt-lr2e5\
-    --model_base ./checkpoints/llava-v1.5-7b\
-   	--question-file ./playground/nocaps/out-domain_question.jsonl \
-   	--image-folder /home/gs4288/data/nocaps/images/out-domain\
-   	--answers-file ./output/nocaps/od_answer_llava1-5.jsonl \
-   	--conv-mode="v1" \
-  	--temperature 0 \
+#CUDA_VISIBLE_DEVICES=1 python -m llava.eval.model_cap \
+#   --model_path ./checkpoints/llava-v1.5-7b-lora-sq-2e4\
+#    --model_base lmsys/vicuna-7b-v1.5 \
+#   	--question-file ./playground/nocaps/out-domain_question.jsonl \
+#   	--image-folder /home/gs4288/data/nocaps/images/out-domain\
+#   	--answers-file ./output/nocaps/od_answer_llava1-5-sq.jsonl \
+#   	--conv-mode="v1" \
+#  	--temperature 0 \
+#
+# python llava/eval/eval_image_caption.py \
+# 	--answers-file ./output/nocaps/od_answer_llava1-5-sq.jsonl\
+# 	--annotation /home/gs4288/data/nocaps/nocaps_val_out_domain.json\
+# 	--model_name "llava_vc1-5_lora-sq" \
+# 	--dataset "nocap_out_d"
 
- python llava/eval/eval_image_caption.py \
- 	--answers-file ./output/nocaps/od_answer_llava1-5.jsonl\
- 	--annotation /home/gs4288/data/nocaps/nocaps_val_out_domain.json\
- 	--model_name "llava_vc1-5-pt" \
- 	--dataset "nocap_out_d"
+
+CUDA_VISIBLE_DEVICES=1 python -m llava.eval.model_cap \
+  --model_path ./checkpoints/llava-v1.5-7b-lora-sq-2e4\
+ 	--model_base lmsys/vicuna-7b-v1.5 \
+	--question-file ./playground/conceptual/question3.jsonl \
+	--image-folder /home/gs4288/data/conceptual \
+	--answers-file ./output/conceptual/answer_vc15_lora_sq.jsonl \
+	--conv-mode="v1" \
+	--temperature 0 \
+
+python llava/eval/eval_image_caption.py \
+	--answers-file ./output/conceptual/answer_vc15_lora_sq.jsonl\
+	--QA ./playground/conceptual/question3.jsonl \
+	--model_name "llava_vc15_lora_sq"\
+	--dataset "concept"
+
+#  CUDA_VISIBLE_DEVICES=1 python -m llava.eval.model_cap \
+#      --model_path ./checkpoints/llava-v1.5-7b-lora\
+# 	--model_base ./checkpoints/llava-v1.5-7b\
+#  	--question-file ./playground/flickr/question3.jsonl \
+#  	--image-folder /home/gs4288/data/Flickr/flickr30k_images\
+#  	--answers-file ./output/flickr/answer_llava1-5-lora.jsonl \
+#  	--conv-mode="v1" \
+#  	--temperature 0 \
+
+#  python llava/eval/eval_image_caption.py \
+#  	--answers-file ./output/flickr/answer_llava1-5-lora.jsonl\
+#  	--annotation /home/gs4288/data/Flickr/annotations/flickr30k_test.json\
+#  	--model_name "llava_vc1-5-lora" \
+#  	--dataset "flickr"
+
+#  CUDA_VISIBLE_DEVICES=1 python -m llava.eval.model_cap \
+#     --model_path ./checkpoints/llava-v1.5-7b-lora-sq\
+#  	--model_base ./checkpoints/llava-v1.5-7b\
+#  	--question-file ./playground/coco/question3.jsonl \
+#  	--image-folder /home/gs4288/data/coco2014/images\
+#  	--answers-file ./output/coco/answer_llava1-5.jsonl \
+#  	--conv-mode="v1_sq" \
+#  	--temperature 0 \
+
+#  python llava/eval/eval_image_caption.py \
+#  	--answers-file ./output/coco/answer_llava1-5.jsonl\
+#  	--annotation /home/gs4288/data/coco2014/annotations/coco_karpathy_test.json\
+#  	--model_name "llava_vc1-5_lora_sq" \
+#  	--dataset "coco"
+
+# CUDA_VISIBLE_DEVICES=1 python llava/eval/model_cap.py \
+#    --model_path ./checkpoints/llava-llava-v1.5-7b-pt-lr2e5\
+# 	--model_base ./checkpoints/llava-v1.5-7b\
+# 	--question-file ./playground/flickr/question3.jsonl \
+# 	--image-folder /home/gs4288/data/Flickr/flickr30k_images\
+# 	--answers-file ./output/flickr/answer_llava1-5_pt.jsonl \
+# 	--conv-mode="v1" \
+# 	--pt \
+# 	--do_sample \
+# 	--ptlength 10
+
+# python llava/eval/eval_image_caption.py \
+# 	--answers-file ./output/flickr/answer_llava1-5_pt.jsonl\
+# 	--annotation /home/gs4288/data/Flickr/annotations/flickr30k_test.json\
+# 	--model_name "llava_vc1-5_pt" \
+# 	--dataset "flickr"
+
+#CUDA_VISIBLE_DEVICES=1 python -m llava.eval.model_cap \
+#   --model_path ./checkpoints/llava-v1.5-7b-lora\
+#	--model_base ./checkpoints/llava-v1.5-7b\
+#	--question-file ./playground/coco/question3.jsonl \
+#	--image-folder /home/gs4288/data/coco2014/images\
+#	--answers-file ./output/coco/answer_llava1-5_pt.jsonl \
+#	--conv-mode="v1_sq" \
+#	--pt \
+#	--sq \
+#	--temperature 0 \
+#	--ptlength 10
+#
+#python llava/eval/eval_image_caption.py \
+#	--answers-file ./output/coco/answer_llava1-5_pt.jsonl\
+#	--annotation /home/gs4288/data/coco2014/annotations/coco_karpathy_test.json\
+#	--model_name "llava_vc1-5_pt" \
+#	--dataset "coco"
+#    CUDA_VISIBLE_DEVICES=1 python llava/eval/model_cap.py \
+#    --model_path ./checkpoints/llava-v1.5-7b-lora-336\
+#     --model_base ./checkpoints/llava-v1.5-7b\
+#    	--question-file ./playground/nocaps/out-domain_question.jsonl \
+#    	--image-folder /home/gs4288/data/nocaps/images/out-domain\
+#    	--answers-file ./output/nocaps/od_answer_llava1-5.jsonl \
+#    	--conv-mode="v1" \
+#   	--temperature 0 \
+
+#  python llava/eval/eval_image_caption.py \
+#  	--answers-file ./output/nocaps/od_answer_llava1-5.jsonl\
+#  	--annotation /home/gs4288/data/nocaps/nocaps_val_out_domain.json\
+#  	--model_name "llava_vc1-5-pt" \
+#  	--dataset "nocap_out_d"
 
 # #coco
 # CUDA_VISIBLE_DEVICES=0 python llava/eval/model_cap.py \
