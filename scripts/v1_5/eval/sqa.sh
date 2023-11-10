@@ -1,7 +1,7 @@
 #!/bin/bash
 
 CUDA_VISIBLE_DEVICES=1 python -m llava.eval.model_vqa_science \
-    --model-path ./checkpoints/llava-v1.5-7b-lora-sq-2e4\
+    --model-path ./checkpoints/llava-v1.5-7b-lora\
  	  --model-base lmsys/vicuna-7b-v1.5 \
     --question-file ./playground/data/eval/scienceqa/llava_test_CQM-A.json \
     --image-folder ./playground/data/eval/scienceqa/images/test \

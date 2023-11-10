@@ -263,9 +263,11 @@ conv_vicuna_v1 = Conversation(
 
 conv_vicuna_v1_sq = Conversation(
     system="A chat between a curious user and an artificial intelligence assistant. "
-           "The vuser is an artifical intelligence user, asks a question based on given information, the "
-           "question should be accurate and detailed."
-    "The assistant gives helpful, detailed, and polite answers to the user's questions.",
+           "The assistant gives helpful, detailed, and polite answers to the user's questions."
+           "Also, the artificial intelligence assistant is a curious virtual user. The virtual user asks complex questions "
+           "that are relevant to the content in the image, for example, asking about background knowledge of the objects in the image, "
+           "asking to discuss about events happening in the image, etc. Again, do not ask about uncertain details."
+    ,
     roles=("USER", "ASSISTANT", "VUSER"),
     version="v1_sq",
     messages=(),
