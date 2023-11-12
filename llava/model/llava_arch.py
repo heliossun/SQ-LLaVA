@@ -22,7 +22,7 @@ from .multimodal_encoder.builder import build_vision_tower
 from .multimodal_projector.builder import build_vision_projector
 
 from llava.constants import IGNORE_INDEX, IMAGE_TOKEN_INDEX, DEFAULT_IMAGE_PATCH_TOKEN, DEFAULT_IM_START_TOKEN, DEFAULT_IM_END_TOKEN
-
+from .crossattentionLayer import CrossAttentionLayer
 
 class LlavaMetaModel:
 
@@ -32,6 +32,12 @@ class LlavaMetaModel:
         if hasattr(config, "mm_vision_tower"):
             self.vision_tower = build_vision_tower(config, delay_load=True)
             self.mm_projector = build_vision_projector(config)
+
+        # initial laten features for crossattention
+        self.latent_tokens = nn.Parameter(torch.randn(1, 576, config.hidden_size))
+        qk_dim, v_dim, query_token_dim, tgt_token_dim = (config.hidden_size,config.hidden_size,
+                                                         config.hidden_size,config.hidden_size)
+        self.crossA_layer = CrossAttentionLayer(qk_dim, v_dim, query_token_dim, tgt_token_dim)
 
     def get_vision_tower(self):
         vision_tower = getattr(self, 'vision_tower', None)
@@ -73,6 +79,9 @@ class LlavaMetaModel:
             # In case it is frozen by LoRA
             for p in self.mm_projector.parameters():
                 p.requires_grad = True
+        for p in self.crossA_layer.parameters():
+            p.requires_grad = True
+        self.latent_tokens.requires_grad = True
 
         if pretrain_mm_mlp_adapter is not None:
             mm_projector_weights = torch.load(pretrain_mm_mlp_adapter, map_location='cpu')
@@ -94,6 +103,7 @@ class LlavaMetaForCausalLM(ABC):
     def encode_images(self, images):
         image_features = self.get_model().get_vision_tower()(images)
         image_features = self.get_model().mm_projector(image_features)
+        image_features = self.get_model().crossA_layer(self.get_model().latent_tokens, image_features)
         return image_features
 
     def prepare_inputs_labels_for_multimodal(
