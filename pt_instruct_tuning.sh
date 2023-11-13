@@ -17,7 +17,7 @@ deepspeed --include localhost:1 train_mem.py \
     --group_by_modality_length False \
     --bf16 True \
     --output_dir ./checkpoints/sqlva-$MODEL_VERSION\
-    --num_train_epochs 5 \
+    --num_train_epochs 0.01 \
     --per_device_train_batch_size 2 \
     --per_device_eval_batch_size 12 \
     --gradient_accumulation_steps 8 \
@@ -35,4 +35,5 @@ deepspeed --include localhost:1 train_mem.py \
     --gradient_checkpointing True \
     --dataloader_num_workers 4 \
     --lazy_preprocess True \
-    --report_to wandb 
+    --report_to wandb \
+    --is_train True

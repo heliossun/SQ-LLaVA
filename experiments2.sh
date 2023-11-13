@@ -187,7 +187,7 @@
 #   	--model_name "llava_vc1-5-lora-sq" \
 #   	--dataset "flickr"
  CUDA_VISIBLE_DEVICES=0 python -m llava.eval.model_cap \
-    --model_path ./checkpoints/llava-v1.5-7b-lora\
+    --model_path ./checkpoints/llava-v1.5-7b-lora-sq2-2e4\
  	--model_base lmsys/vicuna-7b-v1.5\
  	--question-file ./playground/coco/question3.jsonl \
  	--image-folder /home/gs4288/data/coco2014/images\
