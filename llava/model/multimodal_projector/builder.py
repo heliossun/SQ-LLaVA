@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import re
-
+from transformers import PerceiverConfig, PerceiverModel
 
 class IdentityMap(nn.Module):
     def __init__(self):
@@ -35,7 +35,10 @@ def build_vision_projector(config, delay_load=False, **kwargs):
 
     if projector_type == 'linear':
         return nn.Linear(config.mm_hidden_size, config.hidden_size)
-
+    if projector_type == "cross_attn":
+        CAconfig = PerceiverConfig(num_latents=config.num_latents, d_latents=config.hidden_size,
+                                   d_model=config.mm_hidden_size)
+        return PerceiverModel(config=CAconfig)
     mlp_gelu_match = re.match(r'^mlp(\d+)x_gelu$', projector_type)
     if mlp_gelu_match:
         mlp_depth = int(mlp_gelu_match.group(1))

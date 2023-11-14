@@ -58,8 +58,8 @@ class ModelArguments:
     mm_use_im_start_end: bool = field(default=False)
     mm_use_im_patch_token: bool = field(default=True)
     mm_vision_select_feature: Optional[str] = field(default="patch")
-    cross_attn: bool = field(default=False)
-    is_train: bool = field(default=False)
+    data_aug: bool = field(default=False)
+    num_latents: int = field(default=256)
 @dataclass
 class DataArguments:
     data_path: str = field(default=None,
@@ -546,6 +546,7 @@ def preprocess_v1_sq2(
                 break
             parts = rou.split(sep)
             if len(parts) ==2:
+                # regular QA
                 parts[0] += sep
                 if has_image:
                     round_len = len(tokenizer_image_token(rou, tokenizer))
@@ -556,7 +557,7 @@ def preprocess_v1_sq2(
 
                 target[cur_len: cur_len + instruction_len] = IGNORE_INDEX
             else:
-                #print(rou)
+                # VUSER & ASSISTANT
                 if has_image:
                     round_len = len(tokenizer_image_token(rou, tokenizer))
                     #print("all ids:",tokenizer_image_token(rou, tokenizer))
@@ -873,13 +874,17 @@ class LazySupervisedDataset(Dataset):
                         result.paste(pil_img, ((height - width) // 2, 0))
                         return result
                 image = expand2square(image, tuple(int(x*255) for x in processor['image_mean']))
-                #image = processor.preprocess(image, return_tensors='pt')['pixel_values'][0]
-                image = processor['processor'](image)
+                try:
+                    image = processor.preprocess(image, return_tensors='pt')['pixel_values'][0]
+                except:
+                    image = processor['processor'](image)
 
                 #print(image.shape)
             else:
-                #image = processor.preprocess(image, return_tensors='pt')['pixel_values'][0]
-                image = processor['processor'](image)
+                try:
+                    image = processor.preprocess(image, return_tensors='pt')['pixel_values'][0]
+                except:
+                    image = processor['processor'](image)
             sources = preprocess_multimodal(
                 copy.deepcopy([e["conversations"] for e in sources]),
                 self.data_args)
@@ -1086,9 +1091,7 @@ def train():
             model.requires_grad_(False)
             for p in model.get_model().mm_projector.parameters():
                 p.requires_grad = True
-            for p in model.get_model().crossA_layer.parameters():
-                p.requires_grad = True
-            model.get_model().latent_tokens.requires_grad = True
+
         model.config.freeze_mm_mlp_adapter = training_args.freeze_mm_mlp_adapter
         if training_args.freeze_mm_mlp_adapter:
             for p in model.get_model().mm_projector.parameters():

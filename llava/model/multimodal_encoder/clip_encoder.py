@@ -19,7 +19,8 @@ class CLIPVisionTower(nn.Module):
             self.load_model()
         else:
             self.cfg_only = CLIPVisionConfig.from_pretrained(self.vision_tower_name)
-        self.is_train = True
+        #print(args)
+        self.data_aug = args.data_aug
     def load_model(self):
         normalize = transforms.Normalize((0.48145466, 0.4578275, 0.40821073), (0.26862954, 0.26130258, 0.27577711))
 
@@ -32,7 +33,8 @@ class CLIPVisionTower(nn.Module):
             transforms.ToTensor(),
             normalize,
         ])
-        if self.is_train:
+        if getattr(self, 'data_aug', True) is True:
+            print("random augmented image")
             self.image_processor = {'processor':transform_train, 'image_mean':[0.48145466, 0.4578275, 0.40821073]}
         else:
             self.image_processor = CLIPImageProcessor.from_pretrained(self.vision_tower_name)
