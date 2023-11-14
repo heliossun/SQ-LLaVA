@@ -37,17 +37,11 @@ git pull
 pip install -e .
 ```
 
-## LLaVA Weights
-Please check out our [Model Zoo](https://github.com/haotian-liu/LLaVA/blob/main/docs/MODEL_ZOO.md) for all public LLaVA checkpoints, and the instructions of how to use the weights.
-
 
 ## Train
+Training consists of two stages: (1) feature alignment stage: use our 558K subset of the LAION-CC-SBU dataset to connect a *frozen pretrained* vision encoder to a *frozen LLM*; (2) visual instruction tuning stage: use 150K GPT-generated multimodal instruction-following data, plus around 515K VQA data from academic-oriented tasks, to teach the model to follow multimodal instructions.
 
-*Below is the latest training configuration for LLaVA v1.5. For legacy models, please refer to README of [this](https://github.com/haotian-liu/LLaVA/tree/v1.0.1) version for now. We'll add them in a separate doc later.*
-
-LLaVA training consists of two stages: (1) feature alignment stage: use our 558K subset of the LAION-CC-SBU dataset to connect a *frozen pretrained* vision encoder to a *frozen LLM*; (2) visual instruction tuning stage: use 150K GPT-generated multimodal instruction-following data, plus around 515K VQA data from academic-oriented tasks, to teach the model to follow multimodal instructions.
-
-LLaVA is trained on 8 A100 GPUs with 80GB memory. To train on fewer GPUs, you can reduce the `per_device_train_batch_size` and increase the `gradient_accumulation_steps` accordingly. Always keep the global batch size the same: `per_device_train_batch_size` x `gradient_accumulation_steps` x `num_gpus`.
+To train on fewer GPUs, you can reduce the `per_device_train_batch_size` and increase the `gradient_accumulation_steps` accordingly. Always keep the global batch size the same: `per_device_train_batch_size` x `gradient_accumulation_steps` x `num_gpus`.
 
 ### Hyperparameters
 We use a similar set of hyperparameters as Vicuna in finetuning.  Both hyperparameters used in pretraining and finetuning are provided below.
@@ -63,6 +57,8 @@ We use a similar set of hyperparameters as Vicuna in finetuning.  Both hyperpara
 | Hyperparameter | Global Batch Size | Learning rate | Epochs | Max length | Weight decay |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | LLaVA-v1.5-13B | 128 | 2e-5 | 1 | 2048 | 0 |
+
+
 
 ### Download Vicuna checkpoints (automatically)
 
@@ -113,6 +109,9 @@ Training script with DeepSpeed ZeRO-3 and lora: [`lora_instruct_tuning.sh`](http
 - `--image_aspect_ratio pad`: this pads the non-square images to square, instead of cropping them; it slightly reduces hallucination.
 - `--group_by_modality_length True`: this should only be used when your instruction tuning dataset contains both language (e.g. ShareGPT) and multimodal (e.g. LLaVA-Instruct). It makes the training sampler only sample a single modality (either image or language) during training, which we observe to speed up training by ~25%, and does not affect the final outcome.
 
+3. Training self-questioning
+Use prompt_version = ‘v1_aq’.
+
 ## Evaluation
 Prepare data
 Please download raw images of datasets (COCO, Flickr, nocaps, conceptual, concadia) for image captioning tasks.
@@ -158,36 +157,8 @@ OPENAI_API_KEY="sk-***********************************" python llava/eval/eval_g
 python summarize_gpt_review.py
 ```
 
-## Citation
-
-If you find LLaVA useful for your research and applications, please cite using this BibTeX:
-```bibtex
-
-@misc{liu2023improvedllava,
-      title={Improved Baselines with Visual Instruction Tuning}, 
-      author={Liu, Haotian and Li, Chunyuan and Li, Yuheng and Lee, Yong Jae},
-      publisher={arXiv:2310.03744},
-      year={2023},
-}
-
-@misc{liu2023llava,
-      title={Visual Instruction Tuning}, 
-      author={Liu, Haotian and Li, Chunyuan and Wu, Qingyang and Lee, Yong Jae},
-      publisher={arXiv:2304.08485},
-      year={2023},
-}
-```
-
 ## Acknowledgement
 
-- [Vicuna](https://github.com/lm-sys/FastChat): the codebase we built upon, and our base model Vicuna-13B that has the amazing language capabilities!
+- [LLaVA](https://github.com/haotian-liu/LLaVA): the codebase we built upon.
 
 ## Related Projects
-
-- [Instruction Tuning with GPT-4](https://github.com/Instruction-Tuning-with-GPT-4/GPT-4-LLM)
-- [LLaVA-Med: Training a Large Language-and-Vision Assistant for Biomedicine in One Day](https://github.com/microsoft/LLaVA-Med)
-- [Otter: In-Context Multi-Modal Instruction Tuning](https://github.com/Luodian/Otter)
-
-For future project ideas, please check out:
-- [SEEM: Segment Everything Everywhere All at Once](https://github.com/UX-Decoder/Segment-Everything-Everywhere-All-At-Once)
-- [Grounded-Segment-Anything](https://github.com/IDEA-Research/Grounded-Segment-Anything) to detect, segment, and generate anything by marrying [Grounding DINO](https://github.com/IDEA-Research/GroundingDINO) and [Segment-Anything](https://github.com/facebookresearch/segment-anything).
