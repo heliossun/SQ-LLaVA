@@ -76,7 +76,9 @@ Training script with DeepSpeed ZeRO-2: [`pretrain.sh`](https://github.com/helios
 ### Visual Instruction Tuning
 
 1. Prepare data
-Please download the annotation of the final mixture our instruction tuning data [llava_v1_5_mix665k.json](https://huggingface.co/datasets/liuhaotian/LLaVA-Instruct-150K/blob/main/llava_v1_5_mix665k.json), and download the images from constituting datasets:
+We use two visual instruction-following datset collected by LLaVA.
+The single source domain data []() has only COCO image.
+The multi source domain data [llava_v1_5_mix665k.json](https://huggingface.co/datasets/liuhaotian/LLaVA-Instruct-150K/blob/main/llava_v1_5_mix665k.json), and download the images from constituting datasets:
 
 - COCO: [train2017](http://images.cocodataset.org/zips/train2017.zip)
 - GQA: [images](https://downloads.cs.stanford.edu/nlp/data/gqa/images.zip)
