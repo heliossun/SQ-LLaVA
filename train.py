@@ -77,7 +77,7 @@ class TrainingArguments(transformers.TrainingArguments):
     optim: str = field(default="adamw_torch")
     remove_unused_columns: bool = field(default=False)
     freeze_mm_mlp_adapter: bool = field(default=False)
-    mpt_attn_impl: Optional[str] = field(default="triton")
+    mpt_attn_impl: Optional[str] = field(default="torch")
     model_max_length: int = field(
         default=512,
         metadata={
@@ -903,7 +903,11 @@ class LazySupervisedDataset(Dataset):
             data_dict['image'] = image
         elif self.data_args.is_multimodal:
             # image does not exist in the data, but the model is multimodal
-            crop_size = self.data_args.image_processor.crop_size
+            try:
+                crop_size = processor.crop_size
+            except:
+                crop_size = processor['crop_size']
+
             data_dict['image'] = torch.zeros(3, crop_size['height'], crop_size['width'])
         return data_dict
 

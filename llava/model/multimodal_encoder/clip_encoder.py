@@ -16,16 +16,15 @@ class CLIPVisionTower(nn.Module):
         self.select_layer = args.mm_vision_select_layer
         self.select_feature = getattr(args, 'mm_vision_select_feature', 'patch')
         if not delay_load:
-            self.load_model()
+            self.load_model(data_aug=args.data_aug)
         else:
             self.cfg_only = CLIPVisionConfig.from_pretrained(self.vision_tower_name)
-        #print(args)
-        self.data_aug = args.data_aug
-    def load_model(self):
+    def load_model(self,data_aug=True):
+        self.image_processor = CLIPImageProcessor.from_pretrained(self.vision_tower_name)
         normalize = transforms.Normalize((0.48145466, 0.4578275, 0.40821073), (0.26862954, 0.26130258, 0.27577711))
 
         transform_train = transforms.Compose([
-            transforms.RandomResizedCrop(336, scale=(0.5, 1.0),
+            transforms.RandomResizedCrop(self.image_processor.crop_size['height'], scale=(0.5, 1.0),
                                          interpolation=InterpolationMode.BICUBIC),
             transforms.RandomHorizontalFlip(),
             RandomAugment(2, 5, isPIL=True, augs=['Identity', 'Brightness', 'Sharpness', 'Equalize',
@@ -33,11 +32,13 @@ class CLIPVisionTower(nn.Module):
             transforms.ToTensor(),
             normalize,
         ])
-        if getattr(self, 'data_aug', True) is True:
+
+        if data_aug:
             print("random augmented image")
-            self.image_processor = {'processor':transform_train, 'image_mean':[0.48145466, 0.4578275, 0.40821073]}
-        else:
-            self.image_processor = CLIPImageProcessor.from_pretrained(self.vision_tower_name)
+            self.image_processor = {'processor':transform_train,
+                                    'image_mean':[0.48145466, 0.4578275, 0.40821073],
+                                    'crop_size':self.image_processor.crop_size}
+
 
         self.vision_tower = CLIPVisionModel.from_pretrained(self.vision_tower_name)
         self.vision_tower.requires_grad_(False)
@@ -63,6 +64,7 @@ class CLIPVisionTower(nn.Module):
                 image_feature = self.feature_select(image_forward_out).to(image.dtype)
                 image_features.append(image_feature)
         else:
+
             image_forward_outs = self.vision_tower(images.to(device=self.device, dtype=self.dtype), output_hidden_states=True)
             image_features = self.feature_select(image_forward_outs).to(images.dtype)
 
