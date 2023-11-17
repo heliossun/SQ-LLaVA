@@ -1,14 +1,14 @@
 #!/bin/bash -l
 
 
-deepspeed train_mem.py \
+deepspeed --include localhost:1 train_mem.py \
     --deepspeed ./scripts/zero2.json \
-    --model_name_or_path lmsys/vicuna-7b-v1.5 \
-    --version plain \
+    --model_name_or_path ./checkpoints/mpt-1b-redpajama-200b-dolly \
+    --version v0_mmtag \
     --data_path /home/gs4288/data/NLP/llava_instruct_80k.json \
     --image_folder /home/gs4288/data/coco/images/train2017 \
-    --vision_tower openai/clip-vit-large-patch14 \
-    --mm_projector_type cross_attn \
+    --vision_tower openai/clip-vit-large-patch14-336 \
+    --mm_projector_type mlp2x_gelu \
     --tune_mm_mlp_adapter True \
     --mm_vision_select_layer -2 \
     --mm_use_im_start_end False \
