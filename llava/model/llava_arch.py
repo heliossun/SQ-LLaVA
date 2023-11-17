@@ -61,7 +61,7 @@ class LlavaMetaModel:
                 vision_tower = self.vision_tower[0]
             else:
                 vision_tower = self.vision_tower
-            vision_tower.load_model()
+            vision_tower.load_model(model_args.data_aug)
 
         self.config.use_mm_proj = True
         self.config.mm_projector_type = getattr(model_args, 'mm_projector_type', 'linear')
@@ -118,7 +118,12 @@ class LlavaMetaForCausalLM(ABC):
             image_features = [x.flatten(0, 1) for x in image_features]
         else:
             image_features = self.encode_images(images)
-
+        try:
+            image_features=image_features.last_hidden_state
+        
+        except:
+            image_features
+        #print(image_features.shape)
         new_input_embeds = []
         new_labels = [] if labels is not None else None
         cur_image_idx = 0

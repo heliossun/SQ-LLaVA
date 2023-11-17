@@ -32,12 +32,13 @@ class SimpleResBlock(nn.Module):
 
 def build_vision_projector(config, delay_load=False, **kwargs):
     projector_type = getattr(config, 'mm_projector_type', 'linear')
-
+    #print(projector_type)
     if projector_type == 'linear':
         return nn.Linear(config.mm_hidden_size, config.hidden_size)
     if projector_type == "cross_attn":
         CAconfig = PerceiverConfig(num_latents=config.num_latents, d_latents=config.hidden_size,
-                                   d_model=config.mm_hidden_size)
+                                   d_model=config.mm_hidden_size,num_self_attends_per_block=2,
+                                   num_self_attention_heads=4,num_cross_attention_heads=4)
         return PerceiverModel(config=CAconfig)
     mlp_gelu_match = re.match(r'^mlp(\d+)x_gelu$', projector_type)
     if mlp_gelu_match:
