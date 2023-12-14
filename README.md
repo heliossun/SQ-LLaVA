@@ -3,7 +3,8 @@
 - [x] Self-questioning
 - [x] Cross-attention as vision projector
 - [x] Data augmentation
-- [ ] Light-weight
+- [x] Light-weight
+- [x] Prototype extractor
 
 
 ## Contents
@@ -30,12 +31,7 @@ pip install -e ".[train]"
 pip install flash-attn --no-build-isolation
 ```
 
-### Upgrade to latest code base
 
-```Shell
-git pull
-pip install -e .
-```
 
 
 ## Train
@@ -50,13 +46,13 @@ We use a similar set of hyperparameters as Vicuna in finetuning.  Both hyperpara
 
 | Hyperparameter | Global Batch Size | Learning rate | Epochs | Max length | Weight decay |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| LLaVA-v1.5-13B | 256 | 1e-3 | 1 | 2048 | 0 |
+| LLaVA-v1.5-7B | 256 | 1e-3 | 1 | 2048 | 0 |
 
 2. Finetuning
 
 | Hyperparameter | Global Batch Size | Learning rate | Epochs | Max length | Weight decay |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| LLaVA-v1.5-13B | 128 | 2e-5 | 1 | 2048 | 0 |
+| LLaVA-v1.5-7B | 128 | 2e-5 | 1 | 2048 | 0 |
 
 
 
@@ -70,15 +66,19 @@ Please download the 558K subset of the LAION-CC-SBU dataset with BLIP captions w
 
 Training script with DeepSpeed ZeRO-2: [`pretrain.sh`](https://github.com/heliossun/Visual-self-QA/edit/main/pretrain.sh).
 
-- `--mm_projector_type mlp2x_gelu`: the two-layer MLP vision-language connector.
+- `--mm_projector_type cluster`: the prototype extractor & a two-layer MLP vision-language connector.
 - `--vision_tower openai/clip-vit-large-patch14-336`: CLIP ViT-L/14 336px.
+
+We have also provided a pre-trained weights for the prototype extractor & a two-layer MLP vision-language connector, please download [here](https://huggingface.co/ZachSun/Sophon-projector-cluster-pretrain) and put in `./checkpoints/projector`.
 
 ### Visual Instruction Tuning
 
 1. Prepare data
 We use two visual instruction-following datset collected by LLaVA.
 The single source domain data [llava_instruct_80k.json]() has only COCO image.
-The multi source domain data [llava_v1_5_mix665k.json](https://huggingface.co/datasets/liuhaotian/LLaVA-Instruct-150K/blob/main/llava_v1_5_mix665k.json), and download the images from constituting datasets:
+The multi source domain data [llava_v1_5_mix665k.json](https://huggingface.co/datasets/liuhaotian/LLaVA-Instruct-150K/blob/main/llava_v1_5_mix665k.json),
+and the further mixed-up version [Sophon_mix785k.json](https://huggingface.co/datasets/ZachSun/Sophon-780k),
+and download the images from constituting datasets:
 
 - COCO: [train2017](http://images.cocodataset.org/zips/train2017.zip)
 - GQA: [images](https://downloads.cs.stanford.edu/nlp/data/gqa/images.zip)
@@ -86,6 +86,7 @@ The multi source domain data [llava_v1_5_mix665k.json](https://huggingface.co/da
 - TextVQA: [train_val_images](https://dl.fbaipublicfiles.com/textvqa/images/train_val_images.zip)
 - VisualGenome: [part1](https://cs.stanford.edu/people/rak248/VG_100K_2/images.zip), [part2](https://cs.stanford.edu/people/rak248/VG_100K_2/images2.zip)
 
+Here are the URLs of each dataset, you can use `wget` to download the dataset into a folder.
 After downloading all of them, organize the data as follows in `./playground/data`,
 
 ```
@@ -104,15 +105,15 @@ After downloading all of them, organize the data as follows in `./playground/dat
 
 2. Start training!
 
-Training script with DeepSpeed ZeRO-3 and lora: [`lora_instruct_tuning.sh`](https://github.com/heliossun/Visual-self-QA/edit/main/).
+Training script with DeepSpeed ZeRO-3 and lora: [`lora_instruct_tuning.sh`](https://github.com/heliossun/Visual-self-QA/lora_instruct_tuning.sh).
 
-- `--mm_projector_type mlp2x_gelu`: the two-layer MLP vision-language connector.
+- `--mm_projector_type cluster`: the prototype extractor & a two-layer MLP vision-language connector.
 - `--vision_tower openai/clip-vit-large-patch14-336`: CLIP ViT-L/14 336px.
 - `--image_aspect_ratio pad`: this pads the non-square images to square, instead of cropping them; it slightly reduces hallucination.
 - `--group_by_modality_length True`: this should only be used when your instruction tuning dataset contains both language (e.g. ShareGPT) and multimodal (e.g. LLaVA-Instruct). It makes the training sampler only sample a single modality (either image or language) during training, which we observe to speed up training by ~25%, and does not affect the final outcome.
 
-3. Training self-questioning
-Use prompt_version = ‘v1_aq’.
+3. Training with self-questioning
+- `--version v1_sq`. 
 
 ## Evaluation
 Prepare data
@@ -123,41 +124,10 @@ See [experiments.sh/experiments2.sh](https://github.com/heliossun/Visual-self-QA
 
 See [Evaluation.md](https://github.com/haotian-liu/LLaVA/blob/main/docs/Evaluation.md).
 
-### GPT-assisted Evaluation
-
-Our GPT-assisted evaluation pipeline for multimodal modeling is provided for a comprehensive understanding of the capabilities of vision-language models.  Please see our paper for more details.
-
-1. Generate LLaVA responses
-
-```Shell
-python model_vqa.py \
-    --model-path ./checkpoints/LLaVA-13B-v0 \
-    --question-file \
-    playground/data/coco2014_val_qa_eval/qa90_questions.jsonl \
-    --image-folder \
-    /path/to/coco2014_val \
-    --answers-file \
-    /path/to/answer-file-our.jsonl
-```
-
-2. Evaluate the generated responses.  In our case, [`answer-file-ref.jsonl`](./playground/data/coco2014_val_qa_eval/qa90_gpt4_answer.jsonl) is the response generated by text-only GPT-4 (0314), with the context captions/boxes provided.
-
-```Shell
-OPENAI_API_KEY="sk-***********************************" python llava/eval/eval_gpt_review_visual.py \
-    --question playground/data/coco2014_val_qa_eval/qa90_questions.jsonl \
-    --context llava/eval/table/caps_boxes_coco2014_val_80.jsonl \
-    --answer-list \
-    /path/to/answer-file-ref.jsonl \
-    /path/to/answer-file-our.jsonl \
-    --rule llava/eval/table/rule.json \
-    --output /path/to/review.json
-```
-
-3. Summarize the evaluation results
-
-```Shell
-python summarize_gpt_review.py
-```
+3. To test self-questioning
+- `--version v1_sq`: use the self-questioning templage.
+- `--sq`: enable the self-questioning function.
+- `--n_shot 3`: the number of generated questions. 
 
 ## Acknowledgement
 
