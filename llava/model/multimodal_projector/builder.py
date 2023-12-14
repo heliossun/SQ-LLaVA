@@ -1,8 +1,9 @@
 import torch
 import torch.nn as nn
 import re
-from transformers import PerceiverConfig, PerceiverModel
-
+import torch.nn.functional as F
+from collections import OrderedDict
+from .cluster import Clustering
 class IdentityMap(nn.Module):
     def __init__(self):
         super().__init__()
@@ -19,7 +20,6 @@ class SimpleResBlock(nn.Module):
     def __init__(self, channels):
         super().__init__()
         self.pre_norm = nn.LayerNorm(channels)
-
         self.proj = nn.Sequential(
             nn.Linear(channels, channels),
             nn.GELU(),
@@ -28,18 +28,14 @@ class SimpleResBlock(nn.Module):
     def forward(self, x):
         x = self.pre_norm(x)
         return x + self.proj(x)
-
-
+    
 def build_vision_projector(config, delay_load=False, **kwargs):
     projector_type = getattr(config, 'mm_projector_type', 'linear')
     #print(projector_type)
     if projector_type == 'linear':
         return nn.Linear(config.mm_hidden_size, config.hidden_size)
-    if projector_type == "cross_attn":
-        CAconfig = PerceiverConfig(num_latents=config.num_latents, d_latents=config.hidden_size,
-                                   d_model=config.mm_hidden_size,num_self_attends_per_block=2,
-                                   num_self_attention_heads=4,num_cross_attention_heads=4)
-        return PerceiverModel(config=CAconfig)
+    if projector_type == "cluster":
+        return Clustering(config.mm_hidden_size, config.hidden_size,256, 2)
     mlp_gelu_match = re.match(r'^mlp(\d+)x_gelu$', projector_type)
     if mlp_gelu_match:
         mlp_depth = int(mlp_gelu_match.group(1))
@@ -48,8 +44,17 @@ def build_vision_projector(config, delay_load=False, **kwargs):
             modules.append(nn.GELU())
             modules.append(nn.Linear(config.hidden_size, config.hidden_size))
         return nn.Sequential(*modules)
-
+    
     if projector_type == 'identity':
         return IdentityMap()
 
     raise ValueError(f'Unknown projector type: {projector_type}')
+
+if __name__ == "__main__":
+    m = Clustering(1024,512,4)
+    print(list(m.modules()))
+    input = torch.randn(2, 512,1024)
+    out = m(input)
+    # cluster = Clustering(3,96,10,10,0,0,3,32)
+    # out = cluster(input)
+    #print(out.shape)

@@ -313,7 +313,16 @@ A conversation between a user and an LLM-based AI assistant. The assistant gives
     sep_style=SeparatorStyle.MPT,
     sep="<|im_end|>",
 )
-
+conv_mpt_dolly = Conversation(
+    system="Below is an instruction that describes a task. Write a response that appropriately completes the request.",
+    roles=("### Instruction", "### Response"),
+    version="dolly",
+    messages=(),
+    offset=0,
+    sep_style=SeparatorStyle.TWO,
+    sep=" ",
+    sep2="### End"
+)
 conv_llava_plain = Conversation(
     system="",
     roles=("", ""),
@@ -339,13 +348,25 @@ conv_llava_v0_mmtag = Conversation(
     system="A chat between a curious user and an artificial intelligence assistant. "
            "The assistant is able to understand the visual content that the user provides, and assist the user with a variety of tasks using natural language."
            "The visual content will be provided with the following format: <Image>visual content</Image>.",
-    roles=("Human", "Assistant"),
+    roles=("Instruction", "Response"),
     messages=(
     ),
     offset=0,
     sep_style=SeparatorStyle.SINGLE,
     sep="###",
     version="v0_mmtag",
+)
+
+conv_llava_mpt_mosaic = Conversation(
+    system="""Below is an instruction that describes a task. Write a response that appropriately completes the request.""",
+    roles=("### Instruction", "### Response"),
+    messages=(
+    ),
+    offset=0,
+    sep_style=SeparatorStyle.TWO,
+    sep=" ",
+    sep2="### End",
+    version="dolly",
 )
 
 conv_llava_v1 = Conversation(
@@ -389,7 +410,7 @@ conv_templates = {
     "llava_v1": conv_llava_v1,
     "v1_mmtag": conv_llava_v1_mmtag,
     "llava_llama_2": conv_llava_llama_2,
-
+    "dolly": conv_mpt_dolly,
     "mpt": conv_mpt,
 }
 

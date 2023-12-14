@@ -25,127 +25,6 @@ def get_chunk(lst, n, k):
     chunks = split_list(lst, n)
     return chunks[k]
 
-def eval_sq(args):
-
-    sq_prompt=[1]
-    disable_torch_init()
-    model_path = os.path.expanduser(args.model_path)
-    model_name = get_model_name_from_path(model_path)
-    
-    tokenizer, model, image_processor, context_len = load_pretrained_model(model_path, args.model_base,
-                                                                           model_name, device_map='auto')
-    questions = json.load(open(os.path.expanduser(args.question_file), "r"))
-    questions = get_chunk(questions, args.num_chunks, args.chunk_idx)
-    answers_file = os.path.expanduser(args.answers_file)
-    os.makedirs(os.path.dirname(answers_file), exist_ok=True)
-    ans_file = open(answers_file, "w")
-    for line in tqdm(questions):
-
-        idx = line["id"]
-        question = line['conversations'][0]
-        qs = question['value'].replace('<image>', '').strip()
-        conv = conv_templates[args.conv_mode].copy()
-        self_q = ""
-        if 'image' in line:
-            image_file = line["image"]
-            image = Image.open(os.path.join(args.image_folder, image_file))
-            image_tensor = image_processor.preprocess(image, return_tensors='pt')['pixel_values'][0]
-            images = image_tensor.unsqueeze(0).half().cuda()
-            if getattr(model.config, 'mm_use_im_start_end', False):
-                self_q = DEFAULT_IM_START_TOKEN + DEFAULT_IMAGE_TOKEN + DEFAULT_IM_END_TOKEN + '\n' + self_q
-            else:
-                self_q = DEFAULT_IMAGE_TOKEN + '\n' + self_q
-            
-        else:
-            images = None
-        
-        conv.append_message(conv.roles[2], self_q)
-        prompt = conv.get_prompt()
-        input_ids = tokenizer_image_token(prompt, tokenizer, IMAGE_TOKEN_INDEX, return_tensors='pt')[:-1].unsqueeze(
-                0).cuda()
-        stop_str = conv.sep if conv.sep_style != SeparatorStyle.TWO else conv.sep2
-        keywords = [stop_str]
-        stopping_criteria = [KeywordsStoppingCriteria(keywords, tokenizer, input_ids)] if conv.version == "v0" else None
-
-        # first generation is Self-questioning
-        with torch.inference_mode():
-            output_ids = model.generate(
-                    input_ids,
-                    images=images,
-                    do_sample=True if args.temperature > 0 else False,
-                    temperature=args.temperature,
-                    # no_repeat_ngram_size=3,
-                    max_new_tokens=1024,
-                    use_cache=True,
-                    stopping_criteria=stopping_criteria,)
-        # outputs = tokenizer.batch_decode(output_ids[:, input_ids.shape[1]:], skip_special_tokens=False)[0]
-        # outputs = outputs.strip()
-        # if outputs.endswith(stop_str):
-        #     outputs = outputs[:-len(stop_str)]
-        # outputs = outputs.strip()
-        # print("VUSER: ",outputs)
-        for p in sq_prompt:
-            usr_id = tokenizer(conv.roles[p] + ": ").input_ids
-            usr_id = torch.tensor(usr_id[1:], dtype=torch.long, device=output_ids.device)
-            usr_id = torch.unsqueeze(usr_id, dim=0)
-            #usr_id = usr_id.repeat(output_ids.shape[0], 0)
-            input_ids = torch.cat((output_ids, usr_id), dim=1)
-            with torch.inference_mode():
-                output_ids = model.generate(
-                    input_ids,
-                    images=images,
-                    do_sample=True if args.temperature > 0 else False,
-                    temperature=args.temperature,
-                    # no_repeat_ngram_size=3,
-                    max_new_tokens=1024,
-                    use_cache=True)
-            # outputs = tokenizer.batch_decode(output_ids[:, input_ids.shape[1]:], skip_special_tokens=False)[0]
-            # outputs = outputs.strip()
-            # if outputs.endswith(stop_str):
-            #     outputs = outputs[:-len(stop_str)]
-            # outputs = outputs.strip()
-            # print(f"ASSISTANT: {outputs}")
-        if args.single_pred_prompt:
-            qs = qs + '\n' + "Answer with the option's letter from the given choices directly."
-            
-        qa_prompt = conv.roles[0] + ": " + qs + conv.roles[1] + ": "
-        current_ids = tokenizer(qa_prompt).input_ids
-       # print("regular QA prompt: ",qa_prompt)
-        #print("<<<>>>>>>: ",current_ids)
-        current_ids = torch.tensor(current_ids[1:], dtype=torch.long, device=output_ids.device).unsqueeze(0)
-
-        input_ids = torch.cat((output_ids, current_ids), dim=1)
-        with torch.inference_mode():
-            output_ids = model.generate(
-                input_ids,
-                images=images,
-                do_sample=True if args.temperature > 0 else False,
-                temperature=args.temperature,
-                # no_repeat_ngram_size=3,
-                max_new_tokens=1024,
-                use_cache=True)
-
-        input_token_len = input_ids.shape[1]
-        n_diff_input_output = (input_ids != output_ids[:, :input_token_len]).sum().item()
-        if n_diff_input_output > 0:
-            print(f'[Warning] {n_diff_input_output} output_ids are not the same as the input_ids')
-        outputs = tokenizer.batch_decode(output_ids[:, input_token_len:], skip_special_tokens=True)[0]
-        outputs = outputs.strip()
-        if outputs.endswith(stop_str):
-            outputs = outputs[:-len(stop_str)]
-        outputs = outputs.strip()
-        #print(outputs)
-        # predictions.append(outputs)
-        ans_id = shortuuid.uuid()
-        ans_file.write(json.dumps({"question_id": idx,
-                                   "prompt": qs,
-                                   "text": outputs,
-                                   "answer_id": ans_id,
-                                   "model_id": model_name,
-                                   "metadata": {}}) + "\n")
-        ans_file.flush()
-    ans_file.close()
-
 
 def eval_model(args):
     # Model
@@ -239,7 +118,7 @@ def eval_model(args):
                 outputs = outputs[:-len(stop_str)]
             outputs = outputs.strip()
             outputs = outputs_reasoning + '\n The answer is ' + outputs
-        print("outputs: ",outputs)
+
         ans_id = shortuuid.uuid()
         ans_file.write(json.dumps({"question_id": idx,
                                    "prompt": cur_prompt,
@@ -262,10 +141,7 @@ if __name__ == "__main__":
     parser.add_argument("--chunk-idx", type=int, default=0)
     parser.add_argument("--temperature", type=float, default=0.2)
     parser.add_argument("--answer-prompter", action="store_true")
-    parser.add_argument("--sq", action="store_true")
     parser.add_argument("--single-pred-prompt", action="store_true")
     args = parser.parse_args()
-    if args.sq:
-        eval_sq(args)
-    else:
-        eval_model(args)
+
+    eval_model(args)

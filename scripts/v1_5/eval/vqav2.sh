@@ -5,15 +5,14 @@ IFS=',' read -ra GPULIST <<< "$gpu_list"
 
 CHUNKS=${#GPULIST[@]}
 
-CKPT="llava-v1.5-7b-lora-sq"
+CKPT="llava-v1.5-13b"
 SPLIT="llava_vqav2_mscoco_test-dev2015"
 
 for IDX in $(seq 0 $((CHUNKS-1))); do
-    CUDA_VISIBLE_DEVICES=${GPULIST[$IDX]} python -m sqlva.eval.model_vqa_loader \
-        --model-path ./checkpoints/sqlva-v1.5-7b-lora-sq-2e4\
-        --model-base lmsys/vicuna-7b-v1.5 \
+    CUDA_VISIBLE_DEVICES=${GPULIST[$IDX]} python -m llava.eval.model_vqa_loader \
+        --model-path liuhaotian/llava-v1.5-13b \
         --question-file ./playground/data/eval/vqav2/$SPLIT.jsonl \
-        --image-folder /home/gs4288/data/vqaChallenge2021/test2015 \
+        --image-folder ./playground/data/eval/vqav2/test2015 \
         --answers-file ./playground/data/eval/vqav2/answers/$SPLIT/$CKPT/${CHUNKS}_${IDX}.jsonl \
         --num-chunks $CHUNKS \
         --chunk-idx $IDX \
@@ -33,5 +32,5 @@ for IDX in $(seq 0 $((CHUNKS-1))); do
     cat ./playground/data/eval/vqav2/answers/$SPLIT/$CKPT/${CHUNKS}_${IDX}.jsonl >> "$output_file"
 done
 
-python -m scripts.convert_vqav2_for_submission --split $SPLIT --ckpt $CKPT
+python scripts/convert_vqav2_for_submission.py --split $SPLIT --ckpt $CKPT
 
