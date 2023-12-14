@@ -69,7 +69,7 @@ Training script with DeepSpeed ZeRO-2: [`pretrain.sh`](https://github.com/helios
 - `--mm_projector_type cluster`: the prototype extractor & a two-layer MLP vision-language connector.
 - `--vision_tower openai/clip-vit-large-patch14-336`: CLIP ViT-L/14 336px.
 
-We have also provided a pre-trained weights for the prototype extractor & a two-layer MLP vision-language connector, please download [here](https://huggingface.co/ZachSun/Sophon-projector-cluster-pretrain).
+We have also provided a pre-trained weights for the prototype extractor & a two-layer MLP vision-language connector, please download [here](https://huggingface.co/ZachSun/Sophon-projector-cluster-pretrain) and put in `./checkpoints/projector`.
 
 ### Visual Instruction Tuning
 
