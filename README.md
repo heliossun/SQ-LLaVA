@@ -105,7 +105,7 @@ After downloading all of them, organize the data as follows in `./playground/dat
 
 2. Start training!
 
-Training script with DeepSpeed ZeRO-3 and lora: [`lora_instruct_tuning.sh`](https://github.com/heliossun/Visual-self-QA/lora_instruct_tuning.sh).
+Training script with DeepSpeed ZeRO-3 and lora: [`lora_instruct_tuning.sh`]([https://github.com/heliossun/Visual-self-QA/lora_instruct_tuning.sh](https://github.com/heliossun/Visual-self-QA/blob/main/lora_instruct_tuning.sh)).
 
 - `--mm_projector_type cluster`: the prototype extractor & a two-layer MLP vision-language connector.
 - `--vision_tower openai/clip-vit-large-patch14-336`: CLIP ViT-L/14 336px.
