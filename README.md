@@ -3,7 +3,8 @@
 - [x] Self-questioning
 - [x] Cross-attention as vision projector
 - [x] Data augmentation
-- [ ] Light-weight
+- [x] Light-weight
+- [x] Prototype extractor
 
 
 ## Contents
@@ -30,12 +31,7 @@ pip install -e ".[train]"
 pip install flash-attn --no-build-isolation
 ```
 
-### Upgrade to latest code base
 
-```Shell
-git pull
-pip install -e .
-```
 
 
 ## Train
@@ -50,13 +46,13 @@ We use a similar set of hyperparameters as Vicuna in finetuning.  Both hyperpara
 
 | Hyperparameter | Global Batch Size | Learning rate | Epochs | Max length | Weight decay |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| LLaVA-v1.5-13B | 256 | 1e-3 | 1 | 2048 | 0 |
+| LLaVA-v1.5-7B | 256 | 1e-3 | 1 | 2048 | 0 |
 
 2. Finetuning
 
 | Hyperparameter | Global Batch Size | Learning rate | Epochs | Max length | Weight decay |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| LLaVA-v1.5-13B | 128 | 2e-5 | 1 | 2048 | 0 |
+| LLaVA-v1.5-7B | 128 | 2e-5 | 1 | 2048 | 0 |
 
 
 
