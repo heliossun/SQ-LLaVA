@@ -104,12 +104,12 @@ First, download all images we used.
 - TextVQA: [trainvalimages](https://dl.fbaipublicfiles.com/textvqa/images/train_val_images.zip)
 - VisualGenome: [part1](https://cs.stanford.edu/people/rak248/VG_100K_2/images.zip), [part2](https://cs.stanford.edu/people/rak248/VG_100K_2/images2.zip)
 
-Then, organize the data as follows in `projects/ShareGPT4V/data`:
+Then, organize the data as follows in `./mixTraindata`:
 
 ```none
-ShareGPT4V
+Visual-self-qa
 ├── ...
-├── data
+├── mixTraindata
 │   ├── llava
 │   │   ├── llava_pretrain
 │   │   │   ├── images
