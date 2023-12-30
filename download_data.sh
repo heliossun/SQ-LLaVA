@@ -41,5 +41,6 @@ mkdir mixTraindata/web-landmark/images
 mkdir mixTraindata/wikiart/images
 
 
-mkdir mixTraindata/sam/images
-# run "python download_sam.py" to download sam images
+mkdir mixTraindata/sam
+# run "python download_sam.py --processes 4 --input_file sa1b_links.txt --raw_dir mixTraindata/sam/raw --images_dir mixTraindata/sam/images --masks_dir mixTraindata/sam/annotations" 
+# to download sam images
