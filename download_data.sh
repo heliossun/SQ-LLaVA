@@ -42,5 +42,6 @@ mkdir mixTraindata/wikiart/images
 
 
 mkdir mixTraindata/sam
+# pip install requests
 # run "python download_sam.py --processes 4 --input_file sa1b_links.txt --raw_dir mixTraindata/sam/raw --images_dir mixTraindata/sam/images --masks_dir mixTraindata/sam/annotations" 
 # to download sam images
