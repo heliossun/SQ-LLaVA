@@ -126,10 +126,6 @@ Visual-self-qa
 │   ├── vg
 │   │   ├── VG_100K
 │   │   ├── VG_100K_2
-│   ├── sharegpt4v
-│   │   ├── share-captioner_coco_lcs_sam_1246k_1107.json
-│   │   ├── sharegpt4v_instruct_gpt4-vision_cap100k.json
-│   │   ├── sharegpt4v_mix665k_cap23k_coco-ap9k_lcs3k_sam9k_div2k.json
 │   ├── share_textvqa
 │   │   ├── images
 │   ├── web-celebrity
@@ -138,6 +134,9 @@ Visual-self-qa
 │   │   ├── images
 │   ├── wikiart
 │   │   ├── images
+│   ├── share-captioner_coco_lcs_sam_1246k_1107.json
+│   ├── sharegpt4v_instruct_gpt4-vision_cap100k.json
+│   ├── sharegpt4v_mix665k_cap23k_coco-ap9k_lcs3k_sam9k_div2k.json
 ├── ...
 ```
 
