@@ -60,6 +60,7 @@ class ModelArguments:
     mm_vision_select_feature: Optional[str] = field(default="patch")
     data_aug: bool = field(default=False)
     num_latents: int = field(default=256)
+    pretrain_lora: Optional[str] = field(default=None)
 @dataclass
 class DataArguments:
     data_path: str = field(default=None,
@@ -427,7 +428,7 @@ def preprocess_v1(
             assert role == conv.roles[j % 2], f"{i}"
             conv.append_message(role, sentence["value"])
         conversations.append(conv.get_prompt())
-
+    #print(conversations)
     # Tokenize conversations
 
     if has_image:
@@ -490,30 +491,48 @@ def preprocess_v1(
 def preprocess_v1_sq2(
         sources,
         tokenizer: transformers.PreTrainedTokenizer,
-        has_image: bool = False
+        has_image: bool = False,
+        image_file: str = None
 ) -> Dict:
     conv = conversation_lib.default_conversation.copy()
     roles = {"human": conv.roles[0], "gpt": conv.roles[1], "vuser": conv.roles[2]}
 
     # Apply prompt templates
     conversations = []
-
+    no_sq = ['textvqa', 'vg']
+    half_sq = ['gqa','ocr_vqa']
+    full_sq = ['coco']
     for i, source in enumerate(sources):
-        #vurs = 0
+        vurs = 0
         # if roles[source[0]["from"]] != conv.roles[0]:
         #     # Skip the first one if it is not from human
         #     source = source[1:]
         conv.messages = []
         for j, sentence in enumerate(source):
             role = roles[sentence["from"]]
-            if j>0 and random()>0.5 and sentence["from"] == "human":
-                #vurs+=1
-                conv.append_message(conv.roles[2], sentence["value"] + conv.sep2)   # user --> vsuer: train to ask question
+            if has_image and sentence["from"] == "human":
+                if any(f in image_file for f in no_sq):
+                    conv.append_message(role, sentence["value"])
+                elif any(f in image_file for f in half_sq):
+                    if j>0 and random()>0.6:
+                        vurs+=1
+                        conv.append_message(conv.roles[2], sentence["value"] + conv.sep2)   # user --> vsuer: train to ask question
+                    else:
+                        conv.append_message(role, sentence["value"])
+                else:
+                    if j==0 or random()>0.6:
+                        vurs+=1
+                        conv.append_message(conv.roles[2], sentence["value"] + conv.sep2)   # user --> vsuer: train to ask question
+                    else:
+                        conv.append_message(role, sentence["value"])
             else:
                 conv.append_message(role, sentence["value"])
         conversations.append(conv.get_prompt())
         # if(vurs>0):
         #     print(conv.get_prompt())
+    # for i in conversations:
+    #     print(i)
+    #print("total number of v-users: ",vurs)
     if has_image:
         input_ids = torch.stack(
             [tokenizer_image_token(prompt, tokenizer, return_tensors='pt') for prompt in conversations], dim=0)
@@ -532,7 +551,7 @@ def preprocess_v1_sq2(
 
     # Mask targets
     sep = conv.sep + conv.roles[1] + ": "
-    sep_vur = conv.sep + conv.roles[2] + ": "
+    sep_vur = conv.roles[2] + ": "
     for conversation, target in zip(conversations, targets):
         total_len = int(target.ne(tokenizer.pad_token_id).sum())
 
@@ -551,25 +570,30 @@ def preprocess_v1_sq2(
                 if has_image:
                     round_len = len(tokenizer_image_token(rou, tokenizer))
                     instruction_len = len(tokenizer_image_token(parts[0], tokenizer)) - 2
+                    #print(parts[0],tokenizer_image_token(parts[0], tokenizer))
                 else:
                     round_len = len(tokenizer(rou).input_ids)
                     instruction_len = len(tokenizer(parts[0]).input_ids) - 2
 
                 target[cur_len: cur_len + instruction_len] = IGNORE_INDEX
             else:
-                # VUSER & ASSISTANT
+                # VUSER
                 if has_image:
                     round_len = len(tokenizer_image_token(rou, tokenizer))
-                    #print("all ids:",tokenizer_image_token(rou, tokenizer))
-                    # sample of all ids: [1, 478, 11889, 29901, 4683, 727, 738, 916, 2305, 7962, 297, 278, 1967, 29973]
-                    sep_len = len(tokenizer_image_token(sep_vur, tokenizer)) - 3
-                    #print(f"{sep_vur} ids:", tokenizer_image_token(sep_vur, tokenizer))  VUSER:  ids: [1, 29871, 478, 11889, 29901, 29871]
+                    #print("all ids:", tokenizer_image_token(rou, tokenizer))
+                    if i==0:
+                        temp_sep = "<image>\n"
+                        parts = rou.split(temp_sep)  # find the first <image> of input
+                        parts[0] += temp_sep
+                        sep_len = len(tokenizer_image_token(parts[0], tokenizer))
+                    else:
+                        sep_len = len(tokenizer_image_token(sep_vur, tokenizer)) - 2
                 else:
                     round_len = len(tokenizer(rou).input_ids)
-                    sep_len = len(tokenizer(parts[0]).input_ids) - 2
+                    sep_len = len(tokenizer(sep_vur).input_ids) - 2
 
                 target[cur_len: cur_len + sep_len] = IGNORE_INDEX
-                #print("target after mask: ",target)
+            #print("target after mask: ",target)
             cur_len += round_len
 
         target[cur_len:] = IGNORE_INDEX
@@ -765,7 +789,8 @@ def preprocess_plain(
 def preprocess(
     sources: Sequence[str],
     tokenizer: transformers.PreTrainedTokenizer,
-    has_image: bool = False
+    has_image: bool = False,
+    image_file: str = None
 ) -> Dict:
     """
     Given a list of sources, each is a conversation list. This transform:
@@ -779,7 +804,7 @@ def preprocess(
     if conversation_lib.default_conversation.sep_style == conversation_lib.SeparatorStyle.LLAMA_2:
         return preprocess_llama_2(sources, tokenizer, has_image=has_image)
     if conversation_lib.default_conversation.version == "v1_sq":
-        return preprocess_v1_sq2(sources, tokenizer, has_image=has_image)
+        return preprocess_v1_sq2(sources, tokenizer, has_image=has_image, image_file=image_file)
     if conversation_lib.default_conversation.version.startswith("v1"):
         return preprocess_v1(sources, tokenizer, has_image=has_image)
     if conversation_lib.default_conversation.version == "mpt":
@@ -851,6 +876,7 @@ class LazySupervisedDataset(Dataset):
         if isinstance(i, int):
             sources = [sources]
         assert len(sources) == 1, "Don't know why it is wrapped to a list"  # FIXME
+        image_file=None
         if 'image' in sources[0]:
             image_file = self.list_data_dict[i]['image']
             image_folder = self.data_args.image_folder
@@ -859,6 +885,7 @@ class LazySupervisedDataset(Dataset):
             try:
                 image = Image.open(os.path.join(image_folder, image_file)).convert('RGB')
             except:
+                
                 self.unfinded_image+=1
             if self.data_args.image_aspect_ratio == 'pad':
                 def expand2square(pil_img, background_color):
@@ -873,18 +900,10 @@ class LazySupervisedDataset(Dataset):
                         result = Image.new(pil_img.mode, (height, height), background_color)
                         result.paste(pil_img, ((height - width) // 2, 0))
                         return result
-                image = expand2square(image, tuple(int(x*255) for x in processor['image_mean']))
-                try:
-                    image = processor.preprocess(image, return_tensors='pt')['pixel_values'][0]
-                except:
-                    image = processor['processor'](image)
-
-                #print(image.shape)
+                image = expand2square(image, tuple(int(x*255) for x in processor.image_mean))
+                image = processor.preprocess(image, return_tensors='pt')['pixel_values'][0]
             else:
-                try:
-                    image = processor.preprocess(image, return_tensors='pt')['pixel_values'][0]
-                except:
-                    image = processor['processor'](image)
+                image = processor.preprocess(image, return_tensors='pt')['pixel_values'][0]
             sources = preprocess_multimodal(
                 copy.deepcopy([e["conversations"] for e in sources]),
                 self.data_args)
@@ -893,7 +912,7 @@ class LazySupervisedDataset(Dataset):
         data_dict = preprocess(
             sources,
             self.tokenizer,
-            has_image=('image' in self.list_data_dict[i]))
+            has_image=('image' in self.list_data_dict[i]), image_file = image_file)
         if isinstance(i, int):
             data_dict = dict(input_ids=data_dict["input_ids"][0],
                              labels=data_dict["labels"][0])
@@ -903,10 +922,7 @@ class LazySupervisedDataset(Dataset):
             data_dict['image'] = image
         elif self.data_args.is_multimodal:
             # image does not exist in the data, but the model is multimodal
-            try:
-                crop_size = processor.crop_size
-            except:
-                crop_size = processor['crop_size']
+            crop_size = self.data_args.image_processor.crop_size
 
             data_dict['image'] = torch.zeros(3, crop_size['height'], crop_size['width'])
         return data_dict
@@ -1026,7 +1042,7 @@ def train():
             model.get_input_embeddings().register_forward_hook(make_inputs_require_grad)
 
     if training_args.lora_enable:
-        from peft import LoraConfig, get_peft_model
+        from peft import LoraConfig, get_peft_model,PeftModel,set_peft_model_state_dict
         lora_config = LoraConfig(
             r=training_args.lora_r,
             lora_alpha=training_args.lora_alpha,
@@ -1042,7 +1058,26 @@ def train():
                 model.to(torch.float16)
         rank0_print("Adding LoRA adapters...")
         model = get_peft_model(model, lora_config)
-
+    if model_args.pretrain_lora:
+        checkpoint_name = os.path.join(model_args.pretrain_lora, "pytorch_model.bin")  # Full checkpoint
+        if not os.path.exists(checkpoint_name) and training_args.lora_enable:
+            checkpoint_name = os.path.join(
+                model_args.pretrain_lora, "adapter_model.bin"
+            )  # only LoRA model - LoRA config above has to fit
+            model_args.pretrain_lora = (
+                False  # So the trainer won't try loading its state
+            )
+        # The two files above have a different name depending on how they were saved, but are actually the same.
+        if os.path.exists(checkpoint_name):
+            print(f"Restarting from {checkpoint_name}")
+            adapters_weights = torch.load(checkpoint_name)
+            set_peft_model_state_dict(model, adapters_weights)
+        else:
+            print(f"Checkpoint {checkpoint_name} not found")
+            #prepare_model_for_int8_training(model)
+            #model = PeftModel.from_pretrained(model, model_args.pretrain_lora,is_trainable=True)
+        
+            
     if 'mpt' in model_args.model_name_or_path:
         tokenizer = transformers.AutoTokenizer.from_pretrained(
             model_args.model_name_or_path,
@@ -1124,7 +1159,15 @@ def train():
                 if hasattr(module, 'weight'):
                     if training_args.bf16 and module.weight.dtype == torch.float32:
                         module = module.to(torch.bfloat16)
+    if model_args.pretrain_lora:
+        non_lora_trainables = torch.load(os.path.join(model_args.pretrain_lora, 'non_lora_trainables.bin'), map_location='cpu')
+        non_lora_trainables = {(k[23:] if k.startswith('base_model.') else k): v for k, v in non_lora_trainables.items()}
+        rank0_print("loading non lora weights: ",non_lora_trainables.keys())
+        model.get_model().load_state_dict(non_lora_trainables, strict=False)
 
+       
+
+        
     data_module = make_supervised_data_module(tokenizer=tokenizer,
                                               data_args=data_args)
     trainer = LLaVATrainer(model=model,
@@ -1132,8 +1175,9 @@ def train():
                     args=training_args,
                     **data_module)
 
-    if list(pathlib.Path(training_args.output_dir).glob("checkpoint-*")):
-        trainer.train(resume_from_checkpoint=True)
+    if model_args.pretrain_lora:
+        trainer.train(resume_from_checkpoint=model_args.pretrain_lora)
+
     else:
         trainer.train()
     trainer.save_state()
