@@ -46,7 +46,7 @@ We use a similar set of hyperparameters as Vicuna in finetuning.  Both hyperpara
 
 | Hyperparameter | Global Batch Size | Learning rate | Epochs | Max length | Weight decay |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| LLaVA-v1.5-7B | 256 | 1e-3 | 1 | 2048 | 0 |
+| LLaVA-v1.5-7B | 256 | 2e-4 | 1 | 2048 | 0 |
 
 2. Finetuning
 
@@ -68,7 +68,7 @@ Training script with DeepSpeed ZeRO-2: [`pretrain.sh`](https://github.com/helios
 
 - `--mm_projector_type cluster`: the prototype extractor & a two-layer MLP vision-language connector.
 - `--vision_tower openai/clip-vit-large-patch14-336`: CLIP ViT-L/14 336px.
-
+After pretraining, put the folder `./checkpoints/Sophon-7b-pretrain-clu-558k` in `./checkpoints/projector`.
 We have also provided a pre-trained weights for the prototype extractor & a two-layer MLP vision-language connector, please download [here](https://huggingface.co/ZachSun/Sophon-projector-cluster-pretrain) and put in `./checkpoints/projector`.
 
 ### Visual Instruction Tuning
@@ -144,8 +144,11 @@ Visual-self-qa
 
 
 2. Start training!
+1. Instruction tuning with LLaVA-data:
+Training script with DeepSpeed ZeRO-3 and lora: [`lora_instruct_tuning665k_cluster.sh`]([https://github.com/heliossun/Visual-self-QA/lora_instruct_tuning665k_cluster.sh](https://github.com/heliossun/Visual-self-QA/blob/main/lora_instruct_tuning665k_cluster.sh)).
 
-Training script with DeepSpeed ZeRO-3 and lora: [`lora_instruct_tuning.sh`]([https://github.com/heliossun/Visual-self-QA/lora_instruct_tuning.sh](https://github.com/heliossun/Visual-self-QA/blob/main/lora_instruct_tuning.sh)).
+2. Instruction tuning with ShareGPT4V-data:
+Training script with DeepSpeed ZeRO-3 and lora: [`lora_instruct_tuning835k.sh`]([https://github.com/heliossun/Visual-self-QA/lora_instruct_tuning835k.sh](https://github.com/heliossun/Visual-self-QA/blob/main/lora_instruct_tuning835k.sh)).
 
 - `--mm_projector_type cluster`: the prototype extractor & a two-layer MLP vision-language connector.
 - `--vision_tower openai/clip-vit-large-patch14-336`: CLIP ViT-L/14 336px.
