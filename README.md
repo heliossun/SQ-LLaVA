@@ -142,6 +142,7 @@ Training script with DeepSpeed ZeRO-3 and lora: [`lora_instruct_tuning665k_clust
 Training script with DeepSpeed ZeRO-3 and lora: [`lora_instruct_tuning835k.sh`]([https://github.com/heliossun/Visual-self-QA/lora_instruct_tuning835k.sh](https://github.com/heliossun/Visual-self-QA/blob/main/lora_instruct_tuning835k.sh)).
 
 - `--mm_projector_type cluster`: the prototype extractor & a two-layer MLP vision-language connector.
+- `--mm_projector_type mlp2x_gelu`: a two-layer MLP vision-language connector.
 - `--vision_tower openai/clip-vit-large-patch14-336`: CLIP ViT-L/14 336px.
 - `--image_aspect_ratio pad`: this pads the non-square images to square, instead of cropping them; it slightly reduces hallucination.
 - `--group_by_modality_length True`: this should only be used when your instruction tuning dataset contains both language (e.g. ShareGPT) and multimodal (e.g. LLaVA-Instruct). It makes the training sampler only sample a single modality (either image or language) during training, which we observe to speed up training by ~25%, and does not affect the final outcome.
