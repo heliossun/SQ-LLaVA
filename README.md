@@ -16,6 +16,7 @@
 - [Train](#train)
 - [Evaluation](#evaluation)
 
+## Install
 
 1. Install Package
 ```Shell
@@ -33,48 +34,9 @@ pip install flash-attn --no-build-isolation
 
 
 
-
-## Train
-Training consists of two stages: (1) feature alignment stage: use our 558K subset of the LAION-CC-SBU dataset to connect a *frozen pretrained* vision encoder to a *frozen LLM*; (2) visual instruction tuning stage: use 150K GPT-generated multimodal instruction-following data, plus around 515K VQA data from academic-oriented tasks, to teach the model to follow multimodal instructions.
-
-To train on fewer GPUs, you can reduce the `per_device_train_batch_size` and increase the `gradient_accumulation_steps` accordingly. Always keep the global batch size the same: `per_device_train_batch_size` x `gradient_accumulation_steps` x `num_gpus`.
-
-### Hyperparameters
-We use a similar set of hyperparameters as Vicuna in finetuning.  Both hyperparameters used in pretraining and finetuning are provided below.
-
-1. Pretraining
-
-| Hyperparameter | Global Batch Size | Learning rate | Epochs | Max length | Weight decay |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| LLaVA-v1.5-7B | 256 | 2e-4 | 1 | 2048 | 0 |
-
-2. Finetuning
-
-| Hyperparameter | Global Batch Size | Learning rate | Epochs | Max length | Weight decay |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| LLaVA-v1.5-7B | 128 | 2e-5 | 1 | 2048 | 0 |
-
-
-
-### Download Vicuna checkpoints (automatically)
-
-Our base model Vicuna v1.5, which is an instruction-tuned chatbot, will be downloaded automatically when you run our provided training scripts. No action is needed.
-
-### Pretrain (feature alignment)
-
-Please download the 558K subset of the LAION-CC-SBU dataset with BLIP captions we use in the paper [here](https://huggingface.co/datasets/liuhaotian/LLaVA-Pretrain).
-
-Training script with DeepSpeed ZeRO-2: [`pretrain.sh`](https://github.com/heliossun/Visual-self-QA/edit/main/pretrain.sh).
-
-- `--mm_projector_type cluster`: the prototype extractor & a two-layer MLP vision-language connector.
-- `--vision_tower openai/clip-vit-large-patch14-336`: CLIP ViT-L/14 336px.
-After pretraining, put the folder `./checkpoints/Sophon-7b-pretrain-clu-558k` in `./checkpoints/projector`.
-We have also provided a pre-trained weights for the prototype extractor & a two-layer MLP vision-language connector, please download [here](https://huggingface.co/ZachSun/Sophon-projector-cluster-pretrain) and put in `./checkpoints/projector`.
-
-### Visual Instruction Tuning
-
-1. Prepare data
 ## Data
+
+
 
 | Data file name | Size |
 | --- | ---: |
@@ -88,12 +50,9 @@ This dataset is curated from LAION, CC, SBU, SAM, COCO, web-landmark, web-celebr
 ### ShareGPT4V-PT Dataset
 The pretraining dataset used in this release is a mixture of LAION, CC, SBU, SAM, COCO datasets, resulting in total 1246K image-text pairs with the help of our general ShareCaptioner
 
-### SFT Dataset
-We replace 23K image-text pairs related to the image captioning task in LLaVA-mix-665K with a equivalent subset in our collected GPT4V-generated high-quality image-text pairs.
-
 ### Prepare Images
 
-First, download all images we used.
+For your convinence, please follow [`download_data.sh`](https://github.com/heliossun/Visual-self-QA/edit/main/download_data.sh) for data preparation.
 
 - LAION-CC-SBU-558K: [images.zip](https://huggingface.co/datasets/liuhaotian/LLaVA-Pretrain/blob/main/images.zip)
 - COCO: [train2017](http://images.cocodataset.org/zips/train2017.zip)
@@ -142,8 +101,40 @@ Visual-self-qa
 
 **Important notice**: For the convenience, we provide a zip file for web data. These images must be used for academic purpose.
 
+## Train
+Training consists of two stages: (1) feature alignment stage; (2) visual instruction tuning stage, teaching the model to follow multimodal instructions.
 
-2. Start training!
+To train on fewer GPUs, you can reduce the `per_device_train_batch_size` and increase the `gradient_accumulation_steps` accordingly. Always keep the global batch size the same: `per_device_train_batch_size` x `gradient_accumulation_steps` x `num_gpus`.
+
+### Hyperparameters
+Both hyperparameters used in pretraining and finetuning are provided below.
+
+1. Pretraining
+
+| Hyperparameter | Global Batch Size | Learning rate | Epochs | Max length | Weight decay |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| LLaVA-v1.5-7B | 256 | 2e-4 | 1 | 2048 | 0 |
+
+2. Finetuning
+
+| Hyperparameter | Global Batch Size | Learning rate | Epochs | Max length | Weight decay |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| LLaVA-v1.5-7B | 192 | 2e-5 | 4 | 2048 | 0 |
+
+
+### Pretraining (feature alignment)
+
+Training script with DeepSpeed ZeRO-2: [`pretrain.sh`](https://github.com/heliossun/Visual-self-QA/edit/main/pretrain.sh).
+
+- `--mm_projector_type cluster`: the prototype extractor & a two-layer MLP vision-language connector.
+- `--vision_tower openai/clip-vit-large-patch14-336`: CLIP ViT-L/14 336px.
+- 
+After pretraining, put the folder `./checkpoints/Sophon-7b-pretrain-clu-558k` under `./checkpoints/projector`.
+
+We have also provided a pre-trained weights for the pretraining stage, please download [here](https://huggingface.co/ZachSun/Sophon-projector-cluster-pretrain) and put in `./checkpoints/projector`.
+
+### Visual Instruction Tuning
+
 1. Instruction tuning with LLaVA-data:
 Training script with DeepSpeed ZeRO-3 and lora: [`lora_instruct_tuning665k_cluster.sh`]([https://github.com/heliossun/Visual-self-QA/lora_instruct_tuning665k_cluster.sh](https://github.com/heliossun/Visual-self-QA/blob/main/lora_instruct_tuning665k_cluster.sh)).
 
