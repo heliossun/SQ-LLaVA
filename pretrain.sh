@@ -1,3 +1,4 @@
+#!/bin/bash
 deepspeed train_mem.py \
     --deepspeed ./scripts/zero3.json \
     --model_name_or_path lmsys/vicuna-7b-v1.5 \
