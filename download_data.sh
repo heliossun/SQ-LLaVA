@@ -10,7 +10,7 @@ git lfs clone "https://huggingface.co/datasets/Lin-Chen/ShareGPT4V"
 
 # 2. Download images
 mkdir mixTraindata/llava/llava_pretrain
-wget -P mixTraindata/llava/llava_pretrain https://huggingface.co/datasets/liuhaotian/LLaVA-Pretrain/blob/main/images.zip 
+wget -P mixTraindata/llava/llava_pretrain https://huggingface.co/datasets/liuhaotian/LLaVA-Pretrain/resolve/main/images.zip 
 
 mkdir mixTraindata/coco
 wget -P mixTraindata/coco http://images.cocodataset.org/zips/train2017.zip
