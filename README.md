@@ -96,7 +96,7 @@ Visual-self-qa
 │   ├── share-captioner_coco_lcs_sam_1246k_1107.json
 │   ├── sharegpt4v_instruct_gpt4-vision_cap100k.json
 │   ├── sharegpt4v_mix665k_cap23k_coco-ap9k_lcs3k_sam9k_div2k.json
-│   ├── blip_laion_cc_sbu_558k.json.json
+│   ├── blip_laion_cc_sbu_558k.json
 │   ├── llava_v1_5_mix665k.json
 ├── ...
 ```
