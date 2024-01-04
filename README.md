@@ -152,6 +152,24 @@ Training script with DeepSpeed ZeRO-3 and lora: [`lora_instruct_tuning835k.sh`](
 3. Training with self-questioning
 - `--version v1_sq`. 
 
+## Experiments Tracker
+
+| Stage    | Dataset | Cluster | SQ |  Lr  | Epochs |             Name            | Location | Status |
+|----------|---------|:-------:|:--:|:----:|:------:|:---------------------------:|:--------:|:------:|
+| Pretrain | LLaVA   |    Y    |  N | 2e-4 |    1   | Sophon-7b-pretrain-clu-558k |  Dr. Qin | Runing |
+| Pretrain | LLaVA   |    N    |  N | 2e-4 |    1   |                             |  Dr. Qin |        |
+| Pretrain | LLaVA   |    Y    |  N | 1e-4 |    2   |                             |  Dr. Qin |        |
+|          |         |         |    |      |        |                             |          |        |
+| Pretrain | GPT4v   |    Y    |  N | 2e-4 |    1   |                             |  Dr. Qin |        |
+| Pretrain | GPT4v   |    N    |  N | 2e-4 |    1   |                             |  Dr. Qin |        |
+| Pretrain | GPT4v   |    Y    |  N | 1e-4 |    2   |                             |  Dr. Qin |        |
+|          |         |         |    |      |        |                             |          |        |
+| Finetune | LLaVA   |    Y    |  N | 2e-4 |    1   |                             |  Dr. Qin |        |
+| Finetune | LLaVA   |    N    |  N | 2e-4 |    1   |                             |  Dr. Qin |        |
+| Finetune | LLaVA   |    Y    |  Y | 1e-4 |    4   | Sophon-7b-lora-665k-cq-4epo |  Dr. Qin |        |
+|          |         |         |    |      |        |                             |          |        |
+|          |         |         |    |      |        |                             |          |        |
+
 ## Evaluation
 Prepare data
 Please download raw images of datasets (COCO, Flickr, nocaps, conceptual, concadia) for image captioning tasks.
