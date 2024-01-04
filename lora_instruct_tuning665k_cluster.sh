@@ -4,7 +4,7 @@ deepspeed train_mem.py \
     --model_name_or_path lmsys/vicuna-7b-v1.5 \
     --version v1_sq \
     --data_path ./mixTraindata/llava_v1_5_mix665k.json \
-    --image_folder ./mixTraindata/ \
+    --image_folder ./mixTraindata \
     --vision_tower openai/clip-vit-large-patch14-336 \
     --pretrain_mm_mlp_adapter ./checkpoints/projector/Sophon-7b-pretrain-clu-558k/mm_projector.bin \
     --mm_projector_type cluster \
