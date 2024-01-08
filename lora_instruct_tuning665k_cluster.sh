@@ -14,8 +14,8 @@ deepspeed train_mem.py \
     --image_aspect_ratio pad \
     --group_by_modality_length True \
     --bf16 True \
-    --output_dir ./checkpoints/Sophon-7b-lora-665k-cq-4epo \
-    --num_train_epochs 4 \
+    --output_dir ./checkpoints/llava-Sophon-v1.1-7b-lora-665k-cq \
+    --num_train_epochs 1 \
     --per_device_train_batch_size 12 \
     --per_device_eval_batch_size 6 \
     --gradient_accumulation_steps 2 \
@@ -23,7 +23,7 @@ deepspeed train_mem.py \
     --save_strategy "steps" \
     --save_steps 50000 \
     --save_total_limit 2 \
-    --learning_rate 1e-4 \
+    --learning_rate 2e-4 \
     --weight_decay 0. \
     --warmup_ratio 0.03 \
     --lr_scheduler_type "cosine" \

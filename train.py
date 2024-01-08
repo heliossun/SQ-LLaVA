@@ -499,9 +499,12 @@ def preprocess_v1_sq2(
 
     # Apply prompt templates
     conversations = []
-    no_sq = ['textvqa', 'vg']
-    half_sq = ['gqa','ocr_vqa']
-    full_sq = ['coco']
+    # no_sq = ['textvqa', 'vg']
+    # half_sq = ['gqa','ocr_vqa']
+    # full_sq = ['coco']
+    no_sq=[]
+    full_sq=[]
+    half_sq = ['textvqa', 'vg','gqa','ocr_vqa','coco']
     for i, source in enumerate(sources):
         vurs = 0
         # if roles[source[0]["from"]] != conv.roles[0]:
@@ -520,7 +523,7 @@ def preprocess_v1_sq2(
                     else:
                         conv.append_message(role, sentence["value"])
                 else:
-                    if j==0 or random()>0.6:
+                    if j==0 or random()>0.8:
                         vurs+=1
                         conv.append_message(conv.roles[2], sentence["value"] + conv.sep2)   # user --> vsuer: train to ask question
                     else:
@@ -1040,9 +1043,9 @@ def train():
             def make_inputs_require_grad(module, input, output):
                 output.requires_grad_(True)
             model.get_input_embeddings().register_forward_hook(make_inputs_require_grad)
-
+    # lora target modules: find_all_linear_names(model)
     if training_args.lora_enable:
-        from peft import LoraConfig, get_peft_model,PeftModel,set_peft_model_state_dict
+        from peft import LoraConfig, get_peft_model,PeftModel,set_peft_model_state_dict,AdaLoraModel, AdaLoraConfig
         lora_config = LoraConfig(
             r=training_args.lora_r,
             lora_alpha=training_args.lora_alpha,
@@ -1051,6 +1054,15 @@ def train():
             bias=training_args.lora_bias,
             task_type="CAUSAL_LM",
         )
+        # lora_config = AdaLoraConfig(
+        #     peft_type="ADALORA",
+        #     r=training_args.lora_r,
+        #     lora_alpha=training_args.lora_alpha,
+        #     target_modules=['q_proj','v_proj'],
+        #     lora_dropout=training_args.lora_dropout,
+        #     bias=training_args.lora_bias,
+        #     task_type="CAUSAL_LM",
+        # )
         if training_args.bits == 16:
             if training_args.bf16:
                 model.to(torch.bfloat16)
