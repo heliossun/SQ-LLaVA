@@ -502,9 +502,9 @@ def preprocess_v1_sq2(
     # no_sq = ['textvqa', 'vg']
     # half_sq = ['gqa','ocr_vqa']
     # full_sq = ['coco']
-    no_sq=[]
-    full_sq=[]
-    half_sq = ['textvqa', 'vg','gqa','ocr_vqa','coco']
+    # no_sq=[]
+    # full_sq=[]
+    # half_sq = ['textvqa', 'vg','gqa','ocr_vqa','coco']
     for i, source in enumerate(sources):
         vurs = 0
         # if roles[source[0]["from"]] != conv.roles[0]:
@@ -514,20 +514,20 @@ def preprocess_v1_sq2(
         for j, sentence in enumerate(source):
             role = roles[sentence["from"]]
             if has_image and sentence["from"] == "human":
-                if any(f in image_file for f in no_sq):
-                    conv.append_message(role, sentence["value"])
-                elif any(f in image_file for f in half_sq):
-                    if j>0 and random()>0.6:
-                        vurs+=1
-                        conv.append_message(conv.roles[2], sentence["value"] + conv.sep2)   # user --> vsuer: train to ask question
-                    else:
-                        conv.append_message(role, sentence["value"])
+                # if any(f in image_file for f in no_sq):
+                #     conv.append_message(role, sentence["value"])
+                # elif any(f in image_file for f in half_sq):
+                if j>0 and random()>0.8:
+                    vurs+=1
+                    conv.append_message(conv.roles[2], sentence["value"] + conv.sep2)   # user --> vsuer: train to ask question
                 else:
-                    if j==0 or random()>0.8:
-                        vurs+=1
-                        conv.append_message(conv.roles[2], sentence["value"] + conv.sep2)   # user --> vsuer: train to ask question
-                    else:
-                        conv.append_message(role, sentence["value"])
+                    conv.append_message(role, sentence["value"])
+                # else:
+                #     if j==0 or random()>0.8:
+                #         vurs+=1
+                #         conv.append_message(conv.roles[2], sentence["value"] + conv.sep2)   # user --> vsuer: train to ask question
+                #     else:
+                #         conv.append_message(role, sentence["value"])
             else:
                 conv.append_message(role, sentence["value"])
         conversations.append(conv.get_prompt())
