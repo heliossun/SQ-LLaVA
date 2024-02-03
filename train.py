@@ -70,7 +70,7 @@ class DataArguments:
     image_folder: Optional[str] = field(default=None)
     image_aspect_ratio: str = 'square'
     image_grid_pinpoints: Optional[str] = field(default=None)
-
+    sq_r: float = 0.7
 
 @dataclass
 class TrainingArguments(transformers.TrainingArguments):
@@ -492,7 +492,8 @@ def preprocess_v1_sq2(
         sources,
         tokenizer: transformers.PreTrainedTokenizer,
         has_image: bool = False,
-        image_file: str = None
+        image_file: str = None,
+        sq_r= 0.7,
 ) -> Dict:
     conv = conversation_lib.default_conversation.copy()
     roles = {"human": conv.roles[0], "gpt": conv.roles[1], "vuser": conv.roles[2]}
@@ -502,9 +503,9 @@ def preprocess_v1_sq2(
     # no_sq = ['textvqa', 'vg']
     # half_sq = ['gqa','ocr_vqa']
     # full_sq = ['coco']
-    # no_sq=[]
-    # full_sq=[]
-    # half_sq = ['textvqa', 'vg','gqa','ocr_vqa','coco']
+    no_sq=[]
+    full_sq=[]
+    half_sq = ['textvqa', 'vg','gqa','ocr_vqa','coco']
     for i, source in enumerate(sources):
         vurs = 0
         # if roles[source[0]["from"]] != conv.roles[0]:
@@ -514,20 +515,20 @@ def preprocess_v1_sq2(
         for j, sentence in enumerate(source):
             role = roles[sentence["from"]]
             if has_image and sentence["from"] == "human":
-                # if any(f in image_file for f in no_sq):
-                #     conv.append_message(role, sentence["value"])
-                # elif any(f in image_file for f in half_sq):
-                if j>0 and random()>0.8:
-                    vurs+=1
-                    conv.append_message(conv.roles[2], sentence["value"] + conv.sep2)   # user --> vsuer: train to ask question
-                else:
+                if any(f in image_file for f in no_sq):
                     conv.append_message(role, sentence["value"])
-                # else:
-                #     if j==0 or random()>0.8:
-                #         vurs+=1
-                #         conv.append_message(conv.roles[2], sentence["value"] + conv.sep2)   # user --> vsuer: train to ask question
-                #     else:
-                #         conv.append_message(role, sentence["value"])
+                elif any(f in image_file for f in half_sq):
+                    if j>0 and random()<sq_r:
+                        vurs+=1
+                        conv.append_message(conv.roles[2], sentence["value"] + conv.sep2)   # user --> vsuer: train to ask question
+                    else:
+                        conv.append_message(role, sentence["value"])
+                else:
+                    if j==0 or random()>0.8:
+                        vurs+=1
+                        conv.append_message(conv.roles[2], sentence["value"] + conv.sep2)   # user --> vsuer: train to ask question
+                    else:
+                        conv.append_message(role, sentence["value"])
             else:
                 conv.append_message(role, sentence["value"])
         conversations.append(conv.get_prompt())
@@ -793,7 +794,8 @@ def preprocess(
     sources: Sequence[str],
     tokenizer: transformers.PreTrainedTokenizer,
     has_image: bool = False,
-    image_file: str = None
+    image_file: str = None,
+    sq_r=0.7
 ) -> Dict:
     """
     Given a list of sources, each is a conversation list. This transform:
@@ -807,7 +809,7 @@ def preprocess(
     if conversation_lib.default_conversation.sep_style == conversation_lib.SeparatorStyle.LLAMA_2:
         return preprocess_llama_2(sources, tokenizer, has_image=has_image)
     if conversation_lib.default_conversation.version == "v1_sq":
-        return preprocess_v1_sq2(sources, tokenizer, has_image=has_image, image_file=image_file)
+        return preprocess_v1_sq2(sources, tokenizer, has_image=has_image, image_file=image_file,sq_r = sq_r)
     if conversation_lib.default_conversation.version.startswith("v1"):
         return preprocess_v1(sources, tokenizer, has_image=has_image)
     if conversation_lib.default_conversation.version == "mpt":
@@ -854,6 +856,7 @@ class LazySupervisedDataset(Dataset):
         self.list_data_dict = list_data_dict
         self.data_args = data_args
         self.unfinded_image = 0
+        self.sq_r = data_args.sq_r
     def __len__(self):
         return len(self.list_data_dict)
 
@@ -915,7 +918,7 @@ class LazySupervisedDataset(Dataset):
         data_dict = preprocess(
             sources,
             self.tokenizer,
-            has_image=('image' in self.list_data_dict[i]), image_file = image_file)
+            has_image=('image' in self.list_data_dict[i]), image_file = image_file,sq_r=self.sq_r)
         if isinstance(i, int):
             data_dict = dict(input_ids=data_dict["input_ids"][0],
                              labels=data_dict["labels"][0])
