@@ -2,17 +2,17 @@
 deepspeed train_mem.py \
     --deepspeed ./scripts/zero3.json \
     --model_name_or_path lmsys/vicuna-7b-v1.5 \
-    --version plain \
+    --version plain_qav \
     --data_path ./mixTraindata/blip_laion_cc_sbu_558k.json \
     --image_folder ./mixTraindata/llava/llava_pretrain/images \
     --vision_tower openai/clip-vit-large-patch14-336 \
-    --mm_projector_type cluster \
+    --mm_projector_type mlp2x_gelu \
     --tune_mm_mlp_adapter True \
     --mm_vision_select_layer -2 \
     --mm_use_im_start_end False \
     --mm_use_im_patch_token False \
     --bf16 True \
-    --output_dir ./checkpoints/Sophon-7b-pretrain-clu-558k \
+    --output_dir ./checkpoints/Sophon-7b-pretrain-qav \
     --num_train_epochs 1 \
     --per_device_train_batch_size 16 \
     --per_device_eval_batch_size 4 \
@@ -21,8 +21,8 @@ deepspeed train_mem.py \
     --save_strategy "steps" \
     --save_steps 24000 \
     --save_total_limit 1 \
-    --learning_rate 2e-4 \
-    --weight_decay 0. \
+    --learning_rate 2e-3 \
+    --weight_decay 1e-4 \
     --warmup_ratio 0.03 \
     --lr_scheduler_type "cosine" \
     --logging_steps 1 \
@@ -32,4 +32,5 @@ deepspeed train_mem.py \
     --dataloader_num_workers 4 \
     --lazy_preprocess True \
     --report_to wandb \
-    --data_aug False
+    --data_aug False \
+    --qav_loss \

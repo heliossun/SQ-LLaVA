@@ -1,12 +1,12 @@
 deepspeed train_mem.py \
-    --lora_enable True --lora_r 128 --lora_alpha 256 --mm_projector_lr 2e-5 \
+    --lora_enable True --lora_r 128 --lora_alpha 256 --mm_projector_lr 1e-5 \
     --deepspeed ./scripts/zero3.json \
     --model_name_or_path lmsys/vicuna-7b-v1.5 \
     --version v1_sq \
     --data_path ./mixTraindata/llava_v1_5_mix665k.json \
     --image_folder ./mixTraindata \
     --vision_tower openai/clip-vit-large-patch14-336 \
-    --pretrain_mm_mlp_adapter ./checkpoints/projector/Sophon-7b-pretrain-clu-558k/mm_projector.bin \
+    --pretrain_mm_mlp_adapter ./checkpoints/projector/Sophon-7b-pretrain-cluster/mm_projector.bin \
     --mm_projector_type cluster \
     --mm_vision_select_layer -2 \
     --mm_use_im_start_end False \
@@ -14,8 +14,8 @@ deepspeed train_mem.py \
     --image_aspect_ratio pad \
     --group_by_modality_length True \
     --bf16 True \
-    --output_dir ./checkpoints/llava-Sophon-v1.1-7b-lora-665k-cq-2epo \
-    --num_train_epochs 2 \
+    --output_dir ./checkpoints/llava-Sophon-v1.2-7b-lora-665k-sq-cluster \
+    --num_train_epochs 1 \
     --per_device_train_batch_size 12 \
     --per_device_eval_batch_size 6 \
     --gradient_accumulation_steps 2 \
@@ -23,8 +23,8 @@ deepspeed train_mem.py \
     --save_strategy "steps" \
     --save_steps 50000 \
     --save_total_limit 2 \
-    --learning_rate 1e-4 \
-    --weight_decay 0. \
+    --learning_rate 2e-4 \
+    --weight_decay 1e-4 \
     --warmup_ratio 0.03 \
     --lr_scheduler_type "cosine" \
     --logging_steps 1 \
@@ -35,3 +35,4 @@ deepspeed train_mem.py \
     --lazy_preprocess True \
     --report_to wandb \
     --data_aug False \
+    --sq_r 0.3 \

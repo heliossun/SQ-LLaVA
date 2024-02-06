@@ -70,7 +70,7 @@ class DataArguments:
     image_folder: Optional[str] = field(default=None)
     image_aspect_ratio: str = 'square'
     image_grid_pinpoints: Optional[str] = field(default=None)
-    sq_r: float = 0.7
+    sq_r: float = 0.3
 
 @dataclass
 class TrainingArguments(transformers.TrainingArguments):
@@ -78,6 +78,7 @@ class TrainingArguments(transformers.TrainingArguments):
     optim: str = field(default="adamw_torch")
     remove_unused_columns: bool = field(default=False)
     freeze_mm_mlp_adapter: bool = field(default=False)
+    qav_loss: bool = field(default=False)
     mpt_attn_impl: Optional[str] = field(default="torch")
     model_max_length: int = field(
         default=512,
@@ -168,6 +169,7 @@ def find_all_linear_names(model):
     multimodal_keywords = ['mm_projector', 'vision_tower', 'vision_resampler','latent_tokens','crossA_layer']
     for name, module in model.named_modules():
         if any(mm_keyword in name for mm_keyword in multimodal_keywords):
+
             continue
         if isinstance(module, cls):
             names = name.split('.')
@@ -428,9 +430,6 @@ def preprocess_v1(
             assert role == conv.roles[j % 2], f"{i}"
             conv.append_message(role, sentence["value"])
         conversations.append(conv.get_prompt())
-    #print(conversations)
-    # Tokenize conversations
-
     if has_image:
         input_ids = torch.stack([tokenizer_image_token(prompt, tokenizer, return_tensors='pt') for prompt in conversations], dim=0)
     else:
@@ -493,21 +492,18 @@ def preprocess_v1_sq2(
         tokenizer: transformers.PreTrainedTokenizer,
         has_image: bool = False,
         image_file: str = None,
-        sq_r= 0.7,
+        sq_r=0.3
 ) -> Dict:
     conv = conversation_lib.default_conversation.copy()
     roles = {"human": conv.roles[0], "gpt": conv.roles[1], "vuser": conv.roles[2]}
 
     # Apply prompt templates
     conversations = []
-    # no_sq = ['textvqa', 'vg']
-    # half_sq = ['gqa','ocr_vqa']
-    # full_sq = ['coco']
-    no_sq=[]
-    full_sq=[]
-    half_sq = ['textvqa', 'vg','gqa','ocr_vqa','coco']
+    no_sq = []
+    half_sq = ['gqa','ocr_vqa','textvqa', 'vg','coco']
+    full_sq = []
     for i, source in enumerate(sources):
-        vurs = 0
+        #vurs = 0
         # if roles[source[0]["from"]] != conv.roles[0]:
         #     # Skip the first one if it is not from human
         #     source = source[1:]
@@ -519,13 +515,13 @@ def preprocess_v1_sq2(
                     conv.append_message(role, sentence["value"])
                 elif any(f in image_file for f in half_sq):
                     if j>0 and random()<sq_r:
-                        vurs+=1
+                        #vurs+=1
                         conv.append_message(conv.roles[2], sentence["value"] + conv.sep2)   # user --> vsuer: train to ask question
                     else:
                         conv.append_message(role, sentence["value"])
                 else:
                     if j==0 or random()>0.8:
-                        vurs+=1
+                        #vurs+=1
                         conv.append_message(conv.roles[2], sentence["value"] + conv.sep2)   # user --> vsuer: train to ask question
                     else:
                         conv.append_message(role, sentence["value"])
@@ -663,7 +659,7 @@ def preprocess_v1_sq(
         rounds = conversation.split(conv.sep2)
         cur_len = 1
         target[:cur_len] = IGNORE_INDEX
-        print(f"initial target: {target}")
+        #print(f"initial target: {target}")
         for i, rou in enumerate(rounds):
             if rou == "":
                 break
@@ -779,6 +775,7 @@ def preprocess_plain(
         assert DEFAULT_IMAGE_TOKEN in source[0]['value']
         source[0]['value'] = DEFAULT_IMAGE_TOKEN
         conversation = source[0]['value'] + source[1]['value'] + conversation_lib.default_conversation.sep
+        #print("<<<<>>>>:",conversation)
         conversations.append(conversation)
     # tokenize conversations
     input_ids = [tokenizer_image_token(prompt, tokenizer, return_tensors='pt') for prompt in conversations]
@@ -786,16 +783,45 @@ def preprocess_plain(
     for target, source in zip(targets, sources):
         tokenized_len = len(tokenizer_image_token(source[0]['value'], tokenizer))
         target[:tokenized_len] = IGNORE_INDEX
-
+        #print('target: ', target)
     return dict(input_ids=input_ids, labels=targets)
 
+def preprocess_plain_wQAV(
+    sources: Sequence[str],
+    tokenizer: transformers.PreTrainedTokenizer,
+) -> Dict:
+    # add end signal and concatenate together
+    conversations = []
+    for source in sources:
+        assert len(source) == 2
+        assert DEFAULT_IMAGE_TOKEN in source[0]['value']
+        # VA
+        conversation = DEFAULT_IMAGE_TOKEN + source[1]['value'] + conversation_lib.default_conversation.sep
+        # QAV
+        Q = source[0]['value'].replace('<image>', '')
+        Q = Q.replace('\n', '')
+        conversation += Q + ' ' + source[1]['value'] + DEFAULT_IMAGE_TOKEN + conversation_lib.default_conversation.sep
+        conversations.append(conversation)
+    #print("convs: ", conversations)
+
+    # tokenize conversations
+    input_ids = [tokenizer_image_token(prompt, tokenizer, return_tensors='pt') for prompt in conversations]
+    #print("input ids: ",input_ids)
+    targets = copy.deepcopy(input_ids)
+    for target, source in zip(targets, sources):
+        conversation = DEFAULT_IMAGE_TOKEN + source[1]['value'] + conversation_lib.default_conversation.sep
+        total_len = len(tokenizer_image_token(conversation, tokenizer, return_tensors='pt'))
+        tokenized_len = len(tokenizer_image_token(DEFAULT_IMAGE_TOKEN, tokenizer))
+        target[:tokenized_len] = IGNORE_INDEX
+        target[total_len:] = IGNORE_INDEX
+    return dict(input_ids=input_ids, labels=targets)
 
 def preprocess(
     sources: Sequence[str],
     tokenizer: transformers.PreTrainedTokenizer,
     has_image: bool = False,
     image_file: str = None,
-    sq_r=0.7
+    sq_r = 0.3
 ) -> Dict:
     """
     Given a list of sources, each is a conversation list. This transform:
@@ -804,12 +830,14 @@ def preprocess(
     3. Tokenize the concatenated conversation;
     4. Make a deepcopy as the target. Mask human words with IGNORE_INDEX.
     """
+    if conversation_lib.default_conversation.version == 'plain_qav':
+        return preprocess_plain_wQAV(sources, tokenizer)
     if conversation_lib.default_conversation.sep_style == conversation_lib.SeparatorStyle.PLAIN:
         return preprocess_plain(sources, tokenizer)
     if conversation_lib.default_conversation.sep_style == conversation_lib.SeparatorStyle.LLAMA_2:
         return preprocess_llama_2(sources, tokenizer, has_image=has_image)
     if conversation_lib.default_conversation.version == "v1_sq":
-        return preprocess_v1_sq2(sources, tokenizer, has_image=has_image, image_file=image_file,sq_r = sq_r)
+        return preprocess_v1_sq2(sources, tokenizer, has_image=has_image, image_file=image_file, sq_r=sq_r)
     if conversation_lib.default_conversation.version.startswith("v1"):
         return preprocess_v1(sources, tokenizer, has_image=has_image)
     if conversation_lib.default_conversation.version == "mpt":
@@ -918,7 +946,7 @@ class LazySupervisedDataset(Dataset):
         data_dict = preprocess(
             sources,
             self.tokenizer,
-            has_image=('image' in self.list_data_dict[i]), image_file = image_file,sq_r=self.sq_r)
+            has_image=('image' in self.list_data_dict[i]), image_file = image_file, sq_r=self.sq_r)
         if isinstance(i, int):
             data_dict = dict(input_ids=data_dict["input_ids"][0],
                              labels=data_dict["labels"][0])
@@ -1018,9 +1046,13 @@ def train():
                 **bnb_model_from_pretrained_args
             )
         else:
+            config = transformers.AutoConfig.from_pretrained(model_args.model_name_or_path, trust_remote_code=True)
+            config.qav_loss = training_args.qav_loss
+            #print("llm config", config)
             model = LlavaLlamaForCausalLM.from_pretrained(
                 model_args.model_name_or_path,
                 cache_dir=training_args.cache_dir,
+                config=config,
                 **bnb_model_from_pretrained_args
             )
     else:
@@ -1046,7 +1078,7 @@ def train():
             def make_inputs_require_grad(module, input, output):
                 output.requires_grad_(True)
             model.get_input_embeddings().register_forward_hook(make_inputs_require_grad)
-    # lora target modules: find_all_linear_names(model)
+    #print("lora model:<<<<<>>>>>",find_all_linear_names(model))
     if training_args.lora_enable:
         from peft import LoraConfig, get_peft_model,PeftModel,set_peft_model_state_dict,AdaLoraModel, AdaLoraConfig
         lora_config = LoraConfig(
@@ -1058,13 +1090,19 @@ def train():
             task_type="CAUSAL_LM",
         )
         # lora_config = AdaLoraConfig(
-        #     peft_type="ADALORA",
         #     r=training_args.lora_r,
+        #     beta1=0.85,
+        #     beta2=0.85,
+        #     tinit=200,
+        #     tfinal=1000,
+        #     deltaT=10,
+        #     init_r=64,
+        #     target_r=128,
         #     lora_alpha=training_args.lora_alpha,
         #     target_modules=['q_proj','v_proj'],
         #     lora_dropout=training_args.lora_dropout,
-        #     bias=training_args.lora_bias,
         #     task_type="CAUSAL_LM",
+        #     inference_mode=False,
         # )
         if training_args.bits == 16:
             if training_args.bf16:

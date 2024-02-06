@@ -1,16 +1,4 @@
-#    Copyright 2023 Haotian Liu
-#
-#    Licensed under the Apache License, Version 2.0 (the "License");
-#    you may not use this file except in compliance with the License.
-#    You may obtain a copy of the License at
-#
-#        http://www.apache.org/licenses/LICENSE-2.0
-#
-#    Unless required by applicable law or agreed to in writing, software
-#    distributed under the License is distributed on an "AS IS" BASIS,
-#    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-#    See the License for the specific language governing permissions and
-#    limitations under the License.
+
 
 
 from typing import List, Optional, Tuple, Union
@@ -25,7 +13,8 @@ from transformers import AutoConfig, AutoModelForCausalLM, \
 from transformers.modeling_outputs import CausalLMOutputWithPast
 
 from ..llava_arch import LlavaMetaModel, LlavaMetaForCausalLM
-
+from llava.model.WD_loss import WassersteinDisloss
+from torch.nn.functional import normalize
 
 class LlavaConfig(LlamaConfig):
     model_type = "llava"
@@ -40,7 +29,6 @@ class LlavaLlamaModel(LlavaMetaModel, LlamaModel):
 
 class LlavaLlamaForCausalLM(LlamaForCausalLM, LlavaMetaForCausalLM):
     config_class = LlavaConfig
-
     def __init__(self, config):
         super(LlamaForCausalLM, self).__init__(config)
         self.model = LlavaLlamaModel(config)
@@ -49,7 +37,10 @@ class LlavaLlamaForCausalLM(LlamaForCausalLM, LlavaMetaForCausalLM):
 
         # Initialize weights and apply final processing
         self.post_init()
-
+        try:
+            self.qavloss = config.qav_loss
+        except:
+            self.qavloss = False
     def get_model(self):
         return self.model
 
@@ -72,7 +63,11 @@ class LlavaLlamaForCausalLM(LlamaForCausalLM, LlavaMetaForCausalLM):
         )
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
 
-        input_ids, attention_mask, past_key_values, inputs_embeds, labels = self.prepare_inputs_labels_for_multimodal(input_ids, attention_mask, past_key_values, labels, images)
+        try:
+            input_ids, attention_mask, past_key_values, inputs_embeds, labels, image_features = self.prepare_inputs_labels_for_multimodal(input_ids, attention_mask, past_key_values, labels, images)
+        except:
+            input_ids, attention_mask, past_key_values, inputs_embeds, labels = self.prepare_inputs_labels_for_multimodal(
+                input_ids, attention_mask, past_key_values, labels, images)
 
         # decoder outputs consists of (dec_features, layer_state, dec_hidden, dec_attn)
         outputs = self.model(
@@ -85,10 +80,9 @@ class LlavaLlamaForCausalLM(LlamaForCausalLM, LlavaMetaForCausalLM):
             output_hidden_states=output_hidden_states,
             return_dict=return_dict
         )
-
         hidden_states = outputs[0]
-        logits = self.lm_head(hidden_states)
 
+        logits = self.lm_head(hidden_states)
         loss = None
         if labels is not None:
             # Shift so that tokens < n predict n
@@ -101,6 +95,17 @@ class LlavaLlamaForCausalLM(LlamaForCausalLM, LlavaMetaForCausalLM):
             # Enable model/pipeline parallelism
             shift_labels = shift_labels.to(shift_logits.device)
             loss = loss_fct(shift_logits, shift_labels)
+            #print("va loss: ",loss)
+
+        if self.qavloss:
+            n, l, d = image_features.shape
+            v = image_features.view(-1, d)
+            v_llm = hidden_states[:, -l - 2:-2, :]
+            v_llm=v_llm.view(-1,d)
+            v=normalize(v,dim=-1)
+            v_llm = normalize(v_llm, dim=-1)
+            qavloss = WassersteinDisloss(v, v_llm)
+            loss += qavloss
 
         if not return_dict:
             output = (logits,) + outputs[1:]
