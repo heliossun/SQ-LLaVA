@@ -49,7 +49,9 @@ class Clustering(nn.Module):
     def forward(self, x):
         ###
         # Input x: image embedding sequence [B,L,D]
-        # Output x: cluster centers of image embedding [B,N,D]
+        # Output x: 
+        # option 1: cluster centers of image embedding [B,N,D]
+        # option 2: old image embedding + cluster information
         # ###
         #print(self.v.weight)
         #x = self.ln_1(x)
@@ -73,18 +75,20 @@ class Clustering(nn.Module):
             centers = sim@feature#[B,N,D]
             #print("c2", torch.isnan(centers).any())
         #print("c3",torch.isnan(centers).any())
-        similarity = torch.sigmoid(self.sim_beta + self.sim_alpha * self.pairwise_cos_sim(centers, x)) 
-        #similarity = self.softmax(self.pairwise_cos_sim(centers, x)) #[B,N,L]
+
+        # option 2
+        similarity = torch.sigmoid(self.sim_beta + self.sim_alpha * self.pairwise_cos_sim(centers, x))
         _, max_idx = similarity.max(dim=1, keepdim=True) # cloest center for each embedding [B,1,L]
         mask = torch.zeros_like(similarity)
         mask.scatter_(1, max_idx, 1.)
         similarity = similarity * mask
-        #print("sim:",torch.isnan(similarity).any())
         out = ((feature.unsqueeze(dim=1) * similarity.unsqueeze(dim=-1)).sum(dim=2) + centers_feature) / (
                     mask.sum(dim=-1, keepdim=True) + 1.0)
         out = x+(out.unsqueeze(dim=2) * similarity.unsqueeze(dim=-1)).sum(dim=1)
-        #print("o:",torch.isnan(out).any())
-        #print(out.shape)
         out = self.mlp(out)
+
+
+        # option 1
+        #out = self.mlp(centers)
 
         return out

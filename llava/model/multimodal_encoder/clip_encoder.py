@@ -11,7 +11,6 @@ class CLIPVisionTower(nn.Module):
         super().__init__()
 
         self.is_loaded = False
-
         self.vision_tower_name = vision_tower
         self.select_layer = args.mm_vision_select_layer
         self.select_feature = getattr(args, 'mm_vision_select_feature', 'patch')
@@ -19,25 +18,25 @@ class CLIPVisionTower(nn.Module):
             self.load_model(data_aug=args.data_aug)
         else:
             self.cfg_only = CLIPVisionConfig.from_pretrained(self.vision_tower_name)
-    def load_model(self,data_aug=True):
+    def load_model(self,data_aug=False):
         self.image_processor = CLIPImageProcessor.from_pretrained(self.vision_tower_name)
-        # normalize = transforms.Normalize((0.48145466, 0.4578275, 0.40821073), (0.26862954, 0.26130258, 0.27577711))
+        normalize = transforms.Normalize((0.48145466, 0.4578275, 0.40821073), (0.26862954, 0.26130258, 0.27577711))
 
-        # transform_train = transforms.Compose([
-        #     transforms.RandomResizedCrop(self.image_processor.crop_size['height'], scale=(0.5, 1.0),
-        #                                  interpolation=InterpolationMode.BICUBIC),
-        #     transforms.RandomHorizontalFlip(),
-        #     RandomAugment(2, 5, isPIL=True, augs=['Identity', 'Brightness', 'Sharpness', 'Equalize',
-        #                                           'ShearX', 'ShearY', 'TranslateX', 'TranslateY', 'Rotate']),
-        #     transforms.ToTensor(),
-        #     normalize,
-        # ])
+        transform_train = transforms.Compose([
+            transforms.RandomResizedCrop(self.image_processor.crop_size['height'], scale=(0.5, 1.0),
+                                         interpolation=InterpolationMode.BICUBIC),
+            transforms.RandomHorizontalFlip(),
+            RandomAugment(2, 5, isPIL=True, augs=['Identity', 'Brightness', 'Sharpness', 'Equalize',
+                                                  'ShearX', 'ShearY', 'TranslateX', 'TranslateY', 'Rotate']),
+            transforms.ToTensor(),
+            normalize,
+        ])
 
-        # if data_aug:
-        #     print("random augmented image")
-        #     self.image_processor = {'processor':transform_train,
-        #                             'image_mean':[0.48145466, 0.4578275, 0.40821073],
-        #                             'crop_size':self.image_processor.crop_size}
+        if data_aug:
+            print("random augmented image")
+            self.image_processor = {'processor':transform_train,
+                                    'image_mean':[0.48145466, 0.4578275, 0.40821073],
+                                    'crop_size':self.image_processor.crop_size}
 
 
         self.vision_tower = CLIPVisionModel.from_pretrained(self.vision_tower_name)

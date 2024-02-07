@@ -23,7 +23,7 @@ from llava.model import *
 from llava.constants import DEFAULT_IMAGE_PATCH_TOKEN, DEFAULT_IM_START_TOKEN, DEFAULT_IM_END_TOKEN
 
 
-def load_pretrained_model(model_path, model_base, model_name, load_8bit=False, load_4bit=False, device_map="auto", device="cuda"):
+def load_pretrained_model(model_path, model_base, model_name, load_8bit=False, load_4bit=False, device_map="auto", device="cuda", lora_pt=None):
     kwargs = {"device_map": device_map}
 
     if load_8bit:
@@ -73,10 +73,20 @@ def load_pretrained_model(model_path, model_base, model_name, load_8bit=False, l
             model.load_state_dict(non_lora_trainables, strict=False)
             from peft import PeftModel
             print('Loading LoRA weights...')
-            model = PeftModel.from_pretrained(model, model_path)
+            model = PeftModel.from_pretrained(model, model_path, adapter_name='ft')
+            if lora_pt:
+                print('Loading pretrained LoRA weights...')
+                model.load_adapter(lora_pt, adapter_name='pt')
+                model.add_weighted_adapter(
+                    adapters=['ft', 'pt'],
+                    weights=[0.3, 0.7],
+                    adapter_name="combined",
+                    combination_type="svd",
+                    )
             print('Merging LoRA weights...')
             model = model.merge_and_unload()
             print('Model is loaded...')
+
         elif model_base is not None:
             # this may be mm projector only
             print('Loading LLaVA from base model...')

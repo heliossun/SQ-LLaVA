@@ -7,6 +7,7 @@ deepspeed train_mem.py \
     --image_folder ./mixTraindata/llava/llava_pretrain/images \
     --vision_tower openai/clip-vit-large-patch14-336 \
     --mm_projector_type mlp2x_gelu \
+    --pretrain_mm_mlp_adapter ./checkpoints/projector/llava-v1.5-7b-pretrain/mm_projector.bin \
     --tune_mm_mlp_adapter True \
     --mm_vision_select_layer -2 \
     --mm_use_im_start_end False \
@@ -22,7 +23,7 @@ deepspeed train_mem.py \
     --save_steps 24000 \
     --save_total_limit 1 \
     --learning_rate 2e-3 \
-    --weight_decay 1e-4 \
+    --weight_decay 0. \
     --warmup_ratio 0.03 \
     --lr_scheduler_type "cosine" \
     --logging_steps 1 \

@@ -99,8 +99,10 @@ class LlavaLlamaForCausalLM(LlamaForCausalLM, LlavaMetaForCausalLM):
 
         if self.qavloss:
             n, l, d = image_features.shape
+            image_features=torch.mean(image_features,dim=1,keepdim=True)
             v = image_features.contiguous().view(-1, d)
             v_llm = hidden_states[:, -l - 2:-2, :]
+            v_llm=torch.mean(v_llm,dim=1,keepdim=True)
             v_llm=v_llm.contiguous().view(-1,d)
             v=normalize(v,dim=-1)
             v_llm = normalize(v_llm, dim=-1)
