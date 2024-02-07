@@ -99,9 +99,9 @@ class LlavaLlamaForCausalLM(LlamaForCausalLM, LlavaMetaForCausalLM):
 
         if self.qavloss:
             n, l, d = image_features.shape
-            v = image_features.view(-1, d)
+            v = image_features.contiguous().view(-1, d)
             v_llm = hidden_states[:, -l - 2:-2, :]
-            v_llm=v_llm.view(-1,d)
+            v_llm=v_llm.contiguous().view(-1,d)
             v=normalize(v,dim=-1)
             v_llm = normalize(v_llm, dim=-1)
             qavloss = WassersteinDisloss(v, v_llm)
