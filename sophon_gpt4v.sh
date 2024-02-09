@@ -6,7 +6,7 @@ deepspeed train_mem.py \
     --data_path /home/gs4288/guohao/data/llava-mix665k/llava_v1_5_mix665k.json \
     --image_folder /home/gs4288/guohao/data/llava-mix665k \
     --vision_tower openai/clip-vit-large-patch14-336 \
-    --pretrain_mm_mlp_adapter ./checkpoints/projector/Sophon-7b-pretrain-gpt4v-mlp/mm_projector.bin \
+    --pretrain_mm_mlp_adapter ./checkpoints/projector/Sophon-v1.1-7b-pretrain-gpt4v-mlp/mm_projector.bin \
     --mm_projector_type mlp2x_gelu \
     --mm_vision_select_layer -2 \
     --mm_use_im_start_end False \
