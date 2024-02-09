@@ -6,13 +6,14 @@ deepspeed train_mem.py \
     --data_path ./mixTraindata/share-captioner_coco_lcs_sam_1246k_1107.json \
     --image_folder ./mixTraindata\
     --vision_tower openai/clip-vit-large-patch14-336 \
+    --pretrain_mm_mlp_adapter ./checkpoints/projector/llava-v1.5-7b-pretrain/mm_projector.bin \
     --mm_projector_type mlp2x_gelu \
     --tune_mm_mlp_adapter True \
     --mm_vision_select_layer -2 \
     --mm_use_im_start_end False \
     --mm_use_im_patch_token False \
     --bf16 True \
-    --output_dir ./checkpoints/Sophon-7b-pretrain-gpt4v-mlp \
+    --output_dir ./checkpoints/Sophon-v1.1-7b-pretrain-gpt4v-mlp \
     --num_train_epochs 1 \
     --per_device_train_batch_size 16 \
     --per_device_eval_batch_size 4 \
@@ -21,7 +22,7 @@ deepspeed train_mem.py \
     --save_strategy "steps" \
     --save_steps 24000 \
     --save_total_limit 1 \
-    --learning_rate 1e-3 \
+    --learning_rate 1e-4 \
     --weight_decay 0. \
     --warmup_ratio 0.03 \
     --lr_scheduler_type "cosine" \
@@ -29,7 +30,7 @@ deepspeed train_mem.py \
     --tf32 True \
     --model_max_length 2048 \
     --gradient_checkpointing True \
-    --dataloader_num_workers 4 \
+    --dataloader_num_workers 8 \
     --lazy_preprocess True \
     --report_to wandb \
     --data_aug False

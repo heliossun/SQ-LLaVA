@@ -6,7 +6,7 @@ deepspeed train_mem.py \
     --data_path /home/gs4288/guohao/data/llava-mix665k/llava_v1_5_mix665k.json \
     --image_folder /home/gs4288/guohao/data/llava-mix665k \
     --vision_tower openai/clip-vit-large-patch14-336 \
-    --pretrain_mm_mlp_adapter ./checkpoints/projector/Sophon-7b-pretrain-gpt4v-mlp/mm_projector.bin \
+    --pretrain_mm_mlp_adapter ./checkpoints/projector/Sophon-v1.1-7b-pretrain-gpt4v-mlp/mm_projector.bin \
     --mm_projector_type mlp2x_gelu \
     --mm_vision_select_layer -2 \
     --mm_use_im_start_end False \
@@ -14,8 +14,8 @@ deepspeed train_mem.py \
     --image_aspect_ratio pad \
     --group_by_modality_length True \
     --bf16 True \
-    --output_dir ./checkpoints/llava-Sophon-v1.1-7b-lora-gpt4v-sq-2epo \
-    --num_train_epochs 2 \
+    --output_dir ./checkpoints/llava-Sophon-v1.1-7b-lora-gpt4v-sq50 \
+    --num_train_epochs 1 \
     --per_device_train_batch_size 12 \
     --per_device_eval_batch_size 6 \
     --gradient_accumulation_steps 2 \
@@ -23,7 +23,7 @@ deepspeed train_mem.py \
     --save_strategy "steps" \
     --save_steps 50000 \
     --save_total_limit 2 \
-    --learning_rate 1e-4 \
+    --learning_rate 2e-4 \
     --weight_decay 0. \
     --warmup_ratio 0.03 \
     --lr_scheduler_type "cosine" \
@@ -35,5 +35,6 @@ deepspeed train_mem.py \
     --lazy_preprocess True \
     --report_to wandb \
     --data_aug False \
+    --sq_r 0.5
     
     
