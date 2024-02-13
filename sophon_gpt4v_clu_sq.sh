@@ -35,4 +35,4 @@ deepspeed train_mem.py \
     --lazy_preprocess True \
     --report_to wandb \
     --data_aug False \
-    --sq_r 0.5\
+    --sq_r 0.3\

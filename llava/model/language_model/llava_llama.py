@@ -2,7 +2,7 @@
 
 
 from typing import List, Optional, Tuple, Union
-
+import torch.nn.functional as F
 import torch
 import torch.nn as nn
 from torch.nn import CrossEntropyLoss
@@ -39,8 +39,10 @@ class LlavaLlamaForCausalLM(LlamaForCausalLM, LlavaMetaForCausalLM):
         self.post_init()
         try:
             self.qavloss = config.qav_loss
+            self.loss_alpha = config.loss_alpha
         except:
             self.qavloss = False
+            self.loss_alpha=0.
     def get_model(self):
         return self.model
 
@@ -99,15 +101,16 @@ class LlavaLlamaForCausalLM(LlamaForCausalLM, LlavaMetaForCausalLM):
 
         if self.qavloss:
             n, l, d = image_features.shape
-            image_features=torch.mean(image_features,dim=1,keepdim=True)
-            v = image_features.contiguous().view(-1, d)
+            loss_fct = nn.KLDivLoss(reduction="batchmean", log_target=True)
+            #image_features=torch.mean(image_features,dim=1,keepdim=True)
+            #v = image_features.contiguous().view(-1, d)
             v_llm = hidden_states[:, -l - 2:-2, :]
-            v_llm=torch.mean(v_llm,dim=1,keepdim=True)
-            v_llm=v_llm.contiguous().view(-1,d)
-            v=normalize(v,dim=-1)
-            v_llm = normalize(v_llm, dim=-1)
-            qavloss = WassersteinDisloss(v, v_llm)
-            loss += qavloss
+            #v_llm=torch.mean(v_llm,dim=1,keepdim=True)
+            #v_llm=v_llm.contiguous().view(-1,d)
+            inp = F.log_softmax(image_features,dim=-1)
+            target = F.log_softmax(v_llm,dim=-1)
+            qavloss = loss_fct(inp, target)
+            loss = (1-self.loss_alpha)*loss + self.loss_alpha*qavloss
 
         if not return_dict:
             output = (logits,) + outputs[1:]

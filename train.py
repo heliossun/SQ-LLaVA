@@ -79,6 +79,7 @@ class TrainingArguments(transformers.TrainingArguments):
     remove_unused_columns: bool = field(default=False)
     freeze_mm_mlp_adapter: bool = field(default=False)
     qav_loss: bool = field(default=False)
+    loss_alpha: float = field(default=0.5)
     mpt_attn_impl: Optional[str] = field(default="torch")
     model_max_length: int = field(
         default=512,
@@ -1048,6 +1049,7 @@ def train():
         else:
             config = transformers.AutoConfig.from_pretrained(model_args.model_name_or_path, trust_remote_code=True)
             config.qav_loss = training_args.qav_loss
+            config.loss_alpha = training_args.loss_alpha
             #print("llm config", config)
             model = LlavaLlamaForCausalLM.from_pretrained(
                 model_args.model_name_or_path,
