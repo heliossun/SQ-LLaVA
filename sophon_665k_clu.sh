@@ -5,7 +5,7 @@ deepspeed train_mem.py \
     --version v1 \
     --data_path ./mixTraindata/llava_v1_5_mix665k.json \
     --image_folder ./mixTraindata \
-    --vision_tower openai/clip-vit-large-patch14-336 \
+    --vision_tower Lin-Chen/ShareGPT4V-7B_Pretrained_vit-large336-l12 \
     --pretrain_mm_mlp_adapter ./checkpoints/projector/Sophon-7b-pretrain-clu-558k/mm_projector.bin \
     --mm_projector_type cluster \
     --mm_vision_select_layer -2 \

@@ -5,8 +5,8 @@ deepspeed train_mem.py \
     --version v1_sq \
     --data_path /home/gs4288/guohao/data/llava-mix665k/llava_v1_5_mix665k.json \
     --image_folder /home/gs4288/guohao/data/llava-mix665k \
-    --vision_tower openai/clip-vit-large-patch14-336 \
-    --pretrain_mm_mlp_adapter ./checkpoints/projector/Sophon-7b-pretrain-qav/mm_projector.bin \
+    --vision_tower Lin-Chen/ShareGPT4V-7B_Pretrained_vit-large336-l12 \
+    --pretrain_mm_mlp_adapter ./checkpoints/projector/llava-v1.5-7b-pretrain/mm_projector.bin \
     --mm_projector_type mlp2x_gelu \
     --mm_vision_select_layer -2 \
     --mm_use_im_start_end False \
@@ -14,7 +14,7 @@ deepspeed train_mem.py \
     --image_aspect_ratio pad \
     --group_by_modality_length True \
     --bf16 True \
-    --output_dir ./checkpoints/llava-Sophon-v1.1-7b-lora-665k-sq50-qav \
+    --output_dir ./checkpoints/llava-Sophon-v1.6-7b-lora-665k-sq50 \
     --num_train_epochs 1 \
     --per_device_train_batch_size 12 \
     --per_device_eval_batch_size 6 \
@@ -23,7 +23,7 @@ deepspeed train_mem.py \
     --save_strategy "steps" \
     --save_steps 50000 \
     --save_total_limit 2 \
-    --learning_rate 2e-4 \
+    --learning_rate 3e-4 \
     --weight_decay 0. \
     --warmup_ratio 0.03 \
     --lr_scheduler_type "cosine" \
