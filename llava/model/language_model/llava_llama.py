@@ -101,16 +101,17 @@ class LlavaLlamaForCausalLM(LlamaForCausalLM, LlavaMetaForCausalLM):
 
         if self.qavloss:
             n, l, d = image_features.shape
-            loss_fct = nn.KLDivLoss(reduction="batchmean", log_target=True)
+            #loss_fct = nn.KLDivLoss(reduction="batchmean", log_target=True)
+            loss_fct = nn.MSELoss()
             #image_features=torch.mean(image_features,dim=1,keepdim=True)
             #v = image_features.contiguous().view(-1, d)
             v_llm = hidden_states[:, -l - 2:-2, :]
-            image_features = torch.sum(image_features,dim=1)
-            v_llm = torch.sum(v_llm,dim=1)
-            inp = F.log_softmax(image_features,dim=-1)
-            target = F.log_softmax(v_llm,dim=-1)
-            qavloss = loss_fct(inp, target)
-            loss = (1-self.loss_alpha)*loss + self.loss_alpha*qavloss
+            image_features = torch.mean(image_features,dim=1)
+            v_llm = torch.mean(v_llm,dim=1)
+            #inp = F.log_softmax(image_features,dim=-1)
+            #target = F.log_softmax(v_llm,dim=-1)
+            qavloss = loss_fct(image_features, v_llm)
+            loss = loss + self.loss_alpha*qavloss
 
         if not return_dict:
             output = (logits,) + outputs[1:]
