@@ -22,7 +22,7 @@ deepspeed train_mem.py \
     --save_strategy "steps" \
     --save_steps 24000 \
     --save_total_limit 1 \
-    --learning_rate 5e-4 \
+    --learning_rate 1e-4 \
     --weight_decay 0. \
     --warmup_ratio 0.03 \
     --lr_scheduler_type "cosine" \
@@ -35,3 +35,4 @@ deepspeed train_mem.py \
     --report_to wandb \
     --data_aug False \
     --qav_loss \
+    --loss_alpha 0.3

@@ -105,8 +105,8 @@ class LlavaLlamaForCausalLM(LlamaForCausalLM, LlavaMetaForCausalLM):
             #image_features=torch.mean(image_features,dim=1,keepdim=True)
             #v = image_features.contiguous().view(-1, d)
             v_llm = hidden_states[:, -l - 2:-2, :]
-            #v_llm=torch.mean(v_llm,dim=1,keepdim=True)
-            #v_llm=v_llm.contiguous().view(-1,d)
+            image_features = torch.sum(image_features,dim=1)
+            target = torch.sum(target,dim=1)
             inp = F.log_softmax(image_features,dim=-1)
             target = F.log_softmax(v_llm,dim=-1)
             qavloss = loss_fct(inp, target)

@@ -799,9 +799,10 @@ def preprocess_plain_wQAV(
         # VA
         conversation = DEFAULT_IMAGE_TOKEN + source[1]['value'] + conversation_lib.default_conversation.sep
         # QAV
-        Q = source[0]['value'].replace('<image>', '')
-        Q = Q.replace('\n', '')
-        conversation += Q + ' ' + source[1]['value'] + DEFAULT_IMAGE_TOKEN + conversation_lib.default_conversation.sep
+        #Q = source[0]['value'].replace('<image>', '')
+        #Q = Q.replace('\n', '')
+        Q = "Imagine the image you may looking at."
+        conversation += Q + DEFAULT_IMAGE_TOKEN + conversation_lib.default_conversation.sep
         conversations.append(conversation)
     #print("convs: ", conversations)
 
