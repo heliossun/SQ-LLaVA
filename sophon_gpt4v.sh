@@ -5,8 +5,8 @@ deepspeed train_mem.py \
     --version v1 \
     --data_path /home/gs4288/guohao/data/llava-mix665k/llava_v1_5_mix665k.json \
     --image_folder /home/gs4288/guohao/data/llava-mix665k \
-    --vision_tower openai/clip-vit-large-patch14-336 \
-    --pretrain_mm_mlp_adapter ./checkpoints/projector/Sophon-v1.1-7b-pretrain-gpt4v-mlp/mm_projector.bin \
+    --vision_tower Lin-Chen/ShareGPT4V-7B_Pretrained_vit-large336-l12 \
+    --pretrain_mm_mlp_adapter ./checkpoints/projector/llava-v1.5-7b-pretrain/mm_projector.bin \
     --mm_projector_type mlp2x_gelu \
     --mm_vision_select_layer -2 \
     --mm_use_im_start_end False \
@@ -14,7 +14,7 @@ deepspeed train_mem.py \
     --image_aspect_ratio pad \
     --group_by_modality_length True \
     --bf16 True \
-    --output_dir ./checkpoints/llava-Sophon-v1.1-7b-lora-gpt4v \
+    --output_dir ./checkpoints/llava-Sophon-v1.6-7b-lora-gpt4v \
     --num_train_epochs 1 \
     --per_device_train_batch_size 12 \
     --per_device_eval_batch_size 6 \
