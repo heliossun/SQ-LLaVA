@@ -3,9 +3,9 @@ deepspeed train_mem.py \
     --deepspeed ./scripts/zero3.json \
     --model_name_or_path lmsys/vicuna-7b-v1.5 \
     --version v1_sq \
-    --data_path /home/gs4288/guohao/data/llava-mix665k/llava_v1_5_mix665k.json \
-    --image_folder /home/gs4288/guohao/data/llava-mix665k \
-    --vision_tower openai/clip-vit-large-patch14-336 \
+    --data_path ./mixTraindata/llava_v1_5_mix665k.json \
+    --image_folder ./mixTraindata \
+    --vision_tower Lin-Chen/ShareGPT4V-7B_Pretrained_vit-large336-l12 \
     --pretrain_mm_mlp_adapter ./checkpoints/projector/Sophon-7b-pretrain-qav/mm_projector.bin \
     --mm_projector_type mlp2x_gelu \
     --mm_vision_select_layer -2 \

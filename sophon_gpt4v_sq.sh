@@ -3,8 +3,8 @@ deepspeed train_mem.py \
     --deepspeed ./scripts/zero3.json \
     --model_name_or_path lmsys/vicuna-7b-v1.5 \
     --version v1_sq \
-    --data_path /home/gs4288/guohao/data/llava-mix665k/llava_v1_5_mix665k.json \
-    --image_folder /home/gs4288/guohao/data/llava-mix665k \
+    --data_path ./mixTraindata/sharegpt4v_mix665k_cap23k_coco-ap9k_lcs3k_sam9k_div2kk.json \
+    --image_folder ./mixTraindata \
     --vision_tower Lin-Chen/ShareGPT4V-7B_Pretrained_vit-large336-l12 \
     --pretrain_mm_mlp_adapter ./checkpoints/projector/llava-v1.5-7b-pretrain/mm_projector.bin \
     --mm_projector_type mlp2x_gelu \
@@ -14,7 +14,7 @@ deepspeed train_mem.py \
     --image_aspect_ratio pad \
     --group_by_modality_length True \
     --bf16 True \
-    --output_dir ./checkpoints/llava-Sophon-v1.6-7b-lora-gpt4v-sq50 \
+    --output_dir ./checkpoints/llava-Sophon-v1.6-7b-lora-gpt4v-sq50-newEncoder \
     --num_train_epochs 1 \
     --per_device_train_batch_size 12 \
     --per_device_eval_batch_size 6 \

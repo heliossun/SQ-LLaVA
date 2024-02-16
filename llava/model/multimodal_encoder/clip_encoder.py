@@ -2,44 +2,32 @@ import torch
 import torch.nn as nn
 
 from transformers import CLIPVisionModel, CLIPImageProcessor, CLIPVisionConfig
-from torchvision import transforms
-from .randaugment import RandomAugment
-from torchvision.transforms.functional import InterpolationMode
+
 
 class CLIPVisionTower(nn.Module):
     def __init__(self, vision_tower, args, delay_load=False):
         super().__init__()
 
         self.is_loaded = False
+
         self.vision_tower_name = vision_tower
         self.select_layer = args.mm_vision_select_layer
         self.select_feature = getattr(args, 'mm_vision_select_feature', 'patch')
+
         if not delay_load:
-            self.load_model(data_aug=args.data_aug)
+            self.load_model()
+        elif getattr(args, 'unfreeze_mm_vision_tower', False):
+            self.load_model()
         else:
             self.cfg_only = CLIPVisionConfig.from_pretrained(self.vision_tower_name)
-    def load_model(self,data_aug=False):
+
+    def load_model(self, device_map=None):
+        if self.is_loaded:
+            print('{} is already loaded, `load_model` called again, skipping.'.format(self.vision_tower_name))
+            return
+
         self.image_processor = CLIPImageProcessor.from_pretrained(self.vision_tower_name)
-        normalize = transforms.Normalize((0.48145466, 0.4578275, 0.40821073), (0.26862954, 0.26130258, 0.27577711))
-
-        transform_train = transforms.Compose([
-            transforms.RandomResizedCrop(self.image_processor.crop_size['height'], scale=(0.5, 1.0),
-                                         interpolation=InterpolationMode.BICUBIC),
-            transforms.RandomHorizontalFlip(),
-            RandomAugment(2, 5, isPIL=True, augs=['Identity', 'Brightness', 'Sharpness', 'Equalize',
-                                                  'ShearX', 'ShearY', 'TranslateX', 'TranslateY', 'Rotate']),
-            transforms.ToTensor(),
-            normalize,
-        ])
-
-        if data_aug:
-            print("random augmented image")
-            self.image_processor = {'processor':transform_train,
-                                    'image_mean':[0.48145466, 0.4578275, 0.40821073],
-                                    'crop_size':self.image_processor.crop_size}
-
-
-        self.vision_tower = CLIPVisionModel.from_pretrained(self.vision_tower_name)
+        self.vision_tower = CLIPVisionModel.from_pretrained(self.vision_tower_name, device_map=device_map)
         self.vision_tower.requires_grad_(False)
 
         self.is_loaded = True
@@ -63,7 +51,6 @@ class CLIPVisionTower(nn.Module):
                 image_feature = self.feature_select(image_forward_out).to(image.dtype)
                 image_features.append(image_feature)
         else:
-
             image_forward_outs = self.vision_tower(images.to(device=self.device, dtype=self.dtype), output_hidden_states=True)
             image_features = self.feature_select(image_forward_outs).to(images.dtype)
 
@@ -91,6 +78,10 @@ class CLIPVisionTower(nn.Module):
     @property
     def hidden_size(self):
         return self.config.hidden_size
+
+    @property
+    def num_patches_per_side(self):
+        return self.config.image_size // self.config.patch_size
 
     @property
     def num_patches(self):
