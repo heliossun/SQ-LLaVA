@@ -33,7 +33,7 @@ deepspeed train_mem.py \
     --gradient_checkpointing True \
     --dataloader_num_workers 8 \
     --lazy_preprocess True \
-    --report_to wandb \
+    --report_to None \
     --data_aug False \
     --sq_r 0.3
     
