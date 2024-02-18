@@ -3,7 +3,7 @@ deepspeed train_mem.py \
     --deepspeed ./scripts/zero3.json \
     --model_name_or_path lmsys/vicuna-7b-v1.5 \
     --version v1_sq \
-    --data_path ./mixTraindata/sharegpt4v_mix665k_cap23k_coco-ap9k_lcs3k_sam9k_div2kk.json \
+    --data_path ./mixTraindata/sharegpt4v_mix665k_cap23k_coco-ap9k_lcs3k_sam9k_div2k.json \
     --image_folder ./mixTraindata \
     --vision_tower Lin-Chen/ShareGPT4V-7B_Pretrained_vit-large336-l12 \
     --pretrain_mm_mlp_adapter ./checkpoints/projector/llava-v1.5-7b-pretrain/mm_projector.bin \
