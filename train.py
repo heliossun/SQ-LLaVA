@@ -1177,8 +1177,8 @@ def train():
             model.get_model().mm_projector.to(dtype=compute_dtype, device=training_args.device)
         if training_args.vision_tower_lr is not None:
             config = LoraConfig(
-                r=128,
-                lora_alpha=256,
+                r=32,
+                lora_alpha=64,
                 target_modules=["q_proj", "v_proj"],
                 lora_dropout=0.1,
                 bias="none",
@@ -1186,29 +1186,24 @@ def train():
             vision_tower = get_peft_model(vision_tower, config)
         if model_args.pretrain_lora:
             config = LoraConfig(
-                r=128,
-                lora_alpha=256,
+                r=32,
+                lora_alpha=64,
                 target_modules=["q_proj", "v_proj"],
                 lora_dropout=0.1,
                 bias="none",
             )
             vision_tower = get_peft_model(vision_tower, config)
-            checkpoint_name = os.path.join(model_args.pretrain_lora, "pytorch_model.bin")  # Full checkpoint
-            if not os.path.exists(checkpoint_name) and training_args.lora_enable:
-                checkpoint_name = os.path.join(
-                    model_args.pretrain_lora, "vision_encoder_lora.bin"
-                )  # only LoRA model - LoRA config above has to fit
-                model_args.pretrain_lora = (
-                    False  # So the trainer won't try loading its state
-                )
+            
+            checkpoint_name = model_args.pretrain_lora
+            model_args.pretrain_lora = (
+                False  # So the trainer won't try loading its state
+            )
             # The two files above have a different name depending on how they were saved, but are actually the same.
             if os.path.exists(checkpoint_name):
                 print(f"Restarting from {checkpoint_name}")
                 adapters_weights = torch.load(checkpoint_name)
                 adapters_weights = {("base_model.model."+k[19:] if k.startswith('model.vision_tower.') else k): v for k, v in
                                        adapters_weights.items()}
-                #print("vit lora wights", adapters_weights.keys())
-                #print(set_peft_model_state_dict(vision_tower, adapters_weights))
                 vision_tower.load_state_dict(adapters_weights, strict=False)
             else:
                 print(f"Checkpoint {checkpoint_name} not found")
