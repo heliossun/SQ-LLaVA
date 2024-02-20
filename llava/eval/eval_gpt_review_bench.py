@@ -6,7 +6,7 @@ import openai
 import time
 
 NUM_SECONDS_TO_SLEEP = 0.5
-
+openai.api_key = os.environ["OPENAI_API_KEY"]
 
 def get_eval(content: str, max_tokens: int):
     while True:

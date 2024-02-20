@@ -20,7 +20,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 from .multimodal_encoder.builder import build_vision_tower
 from .multimodal_projector.builder import build_vision_projector
-
+from peft import LoraConfig, get_peft_model,set_peft_model_state_dict
+import os
 from llava.constants import IGNORE_INDEX, IMAGE_TOKEN_INDEX, DEFAULT_IMAGE_PATCH_TOKEN, DEFAULT_IM_START_TOKEN, DEFAULT_IM_END_TOKEN
 torch.set_printoptions(threshold=10_000)
 class LlavaMetaModel:
@@ -34,13 +35,13 @@ class LlavaMetaModel:
             self.vision_tower = build_vision_tower(config, delay_load=True)
             self.mm_projector = build_vision_projector(config)
 
-
+        self.load_vit_lora=False
+        self.lora_pt = None
     def get_vision_tower(self):
         vision_tower = getattr(self, 'vision_tower', None)
         if type(vision_tower) is list:
             vision_tower = vision_tower[0]
         return vision_tower
-
     def initialize_vision_modules(self, model_args, fsdp=None):
         vision_tower = model_args.vision_tower
         mm_vision_select_layer = model_args.mm_vision_select_layer
@@ -51,7 +52,6 @@ class LlavaMetaModel:
 
         if self.get_vision_tower() is None:
             vision_tower = build_vision_tower(model_args)
-
             if fsdp is not None and len(fsdp) > 0:
                 self.vision_tower = [vision_tower]
             else:
@@ -93,8 +93,32 @@ class LlavaMetaForCausalLM(ABC):
 
     def get_vision_tower(self):
         return self.get_model().get_vision_tower()
-
+    def set_vit_lora(self, vit_lora_path):
+        self.get_model().lora_pt = vit_lora_path
     def encode_images(self, images):
+        if self.get_model().load_vit_lora is False and self.get_model().lora_pt is not None:
+            vision_tower = self.get_model().get_vision_tower()
+            config = LoraConfig(
+                r=128,
+                lora_alpha=256,
+                target_modules=["q_proj", "v_proj"],
+                lora_dropout=0.1,
+                bias="none",
+            )
+            vision_tower = get_peft_model(vision_tower, config)
+            # for k, n in vision_tower.named_parameters():
+            #     print(k)
+            if os.path.exists(self.get_model().lora_pt):
+                print(f"Restarting from {self.get_model().lora_pt}")
+                adapters_weights = torch.load(self.get_model().lora_pt)
+                adapters_weights = {("base_model.model."+k[19:] if k.startswith('model.vision_tower.') else k): v for k, v in
+                                       adapters_weights.items()}
+                #print("vit lora wights", adapters_weights.keys())
+                #print(set_peft_model_state_dict(vision_tower, adapters_weights))
+                vision_tower.load_state_dict(adapters_weights, strict=False)
+            else:
+                print(f"Checkpoint {self.get_model().lora_pt} not found")
+            self.get_model().load_vit_lora = True
         image_features = self.get_model().get_vision_tower()(images)
         image_features = self.get_model().mm_projector(image_features)
 

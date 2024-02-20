@@ -33,7 +33,7 @@ from llava_trainer import LLaVATrainer
 from llava import conversation as conversation_lib
 from llava.model import *
 from llava.mm_utils import tokenizer_image_token
-
+from peft import LoraConfig, get_peft_model,set_peft_model_state_dict
 from PIL import Image
 from random import random
 
@@ -108,7 +108,7 @@ class TrainingArguments(transformers.TrainingArguments):
     lora_bias: str = "none"
     mm_projector_lr: Optional[float] = None
     group_by_modality_length: bool = field(default=False)
-
+    vision_tower_lr: Optional[float] = None
 
 def maybe_zero_3(param, ignore_status=False, name=None):
     from deepspeed import zero
@@ -170,7 +170,6 @@ def find_all_linear_names(model):
     multimodal_keywords = ['mm_projector', 'vision_tower', 'vision_resampler','latent_tokens','crossA_layer']
     for name, module in model.named_modules():
         if any(mm_keyword in name for mm_keyword in multimodal_keywords):
-
             continue
         if isinstance(module, cls):
             names = name.split('.')
@@ -196,6 +195,7 @@ def safe_save_model_for_hf_trainer(trainer: transformers.Trainer,
 
         current_folder = output_dir.split('/')[-1]
         parent_folder = os.path.dirname(output_dir)
+        
         if trainer.args.local_rank == 0 or trainer.args.local_rank == -1:
             if current_folder.startswith('checkpoint-'):
                 mm_projector_folder = os.path.join(parent_folder, "mm_projector")
@@ -1083,7 +1083,7 @@ def train():
             model.get_input_embeddings().register_forward_hook(make_inputs_require_grad)
     #print("lora model:<<<<<>>>>>",find_all_linear_names(model))
     if training_args.lora_enable:
-        from peft import LoraConfig, get_peft_model,PeftModel,set_peft_model_state_dict,AdaLoraModel, AdaLoraConfig
+        
         lora_config = LoraConfig(
             r=training_args.lora_r,
             lora_alpha=training_args.lora_alpha,
@@ -1114,24 +1114,7 @@ def train():
                 model.to(torch.float16)
         rank0_print("Adding LoRA adapters...")
         model = get_peft_model(model, lora_config)
-    if model_args.pretrain_lora:
-        checkpoint_name = os.path.join(model_args.pretrain_lora, "pytorch_model.bin")  # Full checkpoint
-        if not os.path.exists(checkpoint_name) and training_args.lora_enable:
-            checkpoint_name = os.path.join(
-                model_args.pretrain_lora, "adapter_model.bin"
-            )  # only LoRA model - LoRA config above has to fit
-            model_args.pretrain_lora = (
-                False  # So the trainer won't try loading its state
-            )
-        # The two files above have a different name depending on how they were saved, but are actually the same.
-        if os.path.exists(checkpoint_name):
-            print(f"Restarting from {checkpoint_name}")
-            adapters_weights = torch.load(checkpoint_name)
-            set_peft_model_state_dict(model, adapters_weights)
-        else:
-            print(f"Checkpoint {checkpoint_name} not found")
-            #prepare_model_for_int8_training(model)
-            #model = PeftModel.from_pretrained(model, model_args.pretrain_lora,is_trainable=True)
+    
         
             
     if 'mpt' in model_args.model_name_or_path:
@@ -1173,9 +1156,7 @@ def train():
         )
         
         vision_tower = model.get_vision_tower()
-        vision_tower.to(dtype=torch.bfloat16 if training_args.bf16 else torch.float16, device=training_args.device)
-
-        data_args.image_processor = vision_tower.image_processor
+        
         data_args.is_multimodal = True
 
         model.config.image_aspect_ratio = data_args.image_aspect_ratio
@@ -1194,15 +1175,58 @@ def train():
 
         if training_args.bits in [4, 8]:
             model.get_model().mm_projector.to(dtype=compute_dtype, device=training_args.device)
-
+        if training_args.vision_tower_lr is not None:
+            config = LoraConfig(
+                r=128,
+                lora_alpha=256,
+                target_modules=["q_proj", "v_proj"],
+                lora_dropout=0.1,
+                bias="none",
+            )
+            vision_tower = get_peft_model(vision_tower, config)
+        if model_args.pretrain_lora:
+            config = LoraConfig(
+                r=128,
+                lora_alpha=256,
+                target_modules=["q_proj", "v_proj"],
+                lora_dropout=0.1,
+                bias="none",
+            )
+            vision_tower = get_peft_model(vision_tower, config)
+            checkpoint_name = os.path.join(model_args.pretrain_lora, "pytorch_model.bin")  # Full checkpoint
+            if not os.path.exists(checkpoint_name) and training_args.lora_enable:
+                checkpoint_name = os.path.join(
+                    model_args.pretrain_lora, "vision_encoder_lora.bin"
+                )  # only LoRA model - LoRA config above has to fit
+                model_args.pretrain_lora = (
+                    False  # So the trainer won't try loading its state
+                )
+            # The two files above have a different name depending on how they were saved, but are actually the same.
+            if os.path.exists(checkpoint_name):
+                print(f"Restarting from {checkpoint_name}")
+                adapters_weights = torch.load(checkpoint_name)
+                adapters_weights = {("base_model.model."+k[19:] if k.startswith('model.vision_tower.') else k): v for k, v in
+                                       adapters_weights.items()}
+                #print("vit lora wights", adapters_weights.keys())
+                #print(set_peft_model_state_dict(vision_tower, adapters_weights))
+                vision_tower.load_state_dict(adapters_weights, strict=False)
+            else:
+                print(f"Checkpoint {checkpoint_name} not found")
+                
+            for p in vision_tower.parameters():
+                p.requires_grad = False
+        vision_tower.to(dtype=torch.bfloat16 if training_args.bf16 else torch.float16, device=training_args.device)
+        data_args.image_processor = vision_tower.image_processor
         model.config.mm_use_im_start_end = data_args.mm_use_im_start_end = model_args.mm_use_im_start_end
         model.config.mm_projector_lr = training_args.mm_projector_lr
         training_args.use_im_start_end = model_args.mm_use_im_start_end
+        model.config.vision_tower_lr = training_args.vision_tower_lr
         model.config.mm_use_im_patch_token = model_args.mm_use_im_patch_token
         model.initialize_vision_tokenizer(model_args, tokenizer=tokenizer)
+    #rank0_print("Trainable parameters")
     # for k,v in model.named_parameters():
     #     if v.requires_grad:
-    #         print(k)
+    #         rank0_print(k)
     if training_args.bits in [4, 8]:
         from peft.tuners.lora import LoraLayer
         for name, module in model.named_modules():
@@ -1215,11 +1239,11 @@ def train():
                 if hasattr(module, 'weight'):
                     if training_args.bf16 and module.weight.dtype == torch.float32:
                         module = module.to(torch.bfloat16)
-    if model_args.pretrain_lora:
-        non_lora_trainables = torch.load(os.path.join(model_args.pretrain_lora, 'non_lora_trainables.bin'), map_location='cpu')
-        non_lora_trainables = {(k[23:] if k.startswith('base_model.') else k): v for k, v in non_lora_trainables.items()}
-        rank0_print("loading non lora weights: ",non_lora_trainables.keys())
-        model.get_model().load_state_dict(non_lora_trainables, strict=False)
+    # if model_args.pretrain_lora:
+    #     non_lora_trainables = torch.load(os.path.join(model_args.pretrain_lora, 'non_lora_trainables.bin'), map_location='cpu')
+    #     non_lora_trainables = {(k[23:] if k.startswith('base_model.') else k): v for k, v in non_lora_trainables.items()}
+    #     rank0_print("loading non lora weights: ",non_lora_trainables.keys())
+    #     model.get_model().load_state_dict(non_lora_trainables, strict=False)
 
        
 
@@ -1255,6 +1279,11 @@ def train():
     else:
         safe_save_model_for_hf_trainer(trainer=trainer,
                                        output_dir=training_args.output_dir)
+        if trainer.args.vision_tower_lr is not None:
+            print("saving lora ckpt for vision tower")
+            v_tower_lora = get_peft_state_maybe_zero_3(trainer.model.named_parameters(),training_args.lora_bias)
+            #print(v_tower_lora.keys())
+            torch.save(v_tower_lora, os.path.join(training_args.output_dir, 'vision_encoder_lora.bin'))
 
 
 if __name__ == "__main__":
