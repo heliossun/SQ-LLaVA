@@ -20,6 +20,7 @@ import shutil
 from transformers import AutoTokenizer, AutoModelForCausalLM, AutoConfig, BitsAndBytesConfig
 import torch
 from llava.model import *
+from peft import PeftModel
 from llava.constants import DEFAULT_IMAGE_PATCH_TOKEN, DEFAULT_IM_START_TOKEN, DEFAULT_IM_END_TOKEN
 
 
@@ -72,11 +73,9 @@ def load_pretrained_model(model_path, model_base, model_name, load_8bit=False, l
                 non_lora_trainables = {(k[6:] if k.startswith('model.') else k): v for k, v in non_lora_trainables.items()}
             #print("loading non lora weights: ",non_lora_trainables.keys())
             model.load_state_dict(non_lora_trainables, strict=False)
-            from peft import PeftModel
+
             print('Loading LoRA weights...')
             model = PeftModel.from_pretrained(model, model_path, adapter_name='ft')
-            if lora_pt:
-                model.set_vit_lora( lora_pt)
 
             print('Merging LoRA weights...')
             model = model.merge_and_unload()
@@ -110,7 +109,6 @@ def load_pretrained_model(model_path, model_base, model_name, load_8bit=False, l
         # Load language model
         if model_base is not None:
             # PEFT model
-            from peft import PeftModel
             tokenizer = AutoTokenizer.from_pretrained(model_base, use_fast=False)
             model = AutoModelForCausalLM.from_pretrained(model_base, torch_dtype=torch.float16, low_cpu_mem_usage=True, device_map="auto")
             print(f"Loading LoRA weights from {model_path}")
@@ -142,6 +140,11 @@ def load_pretrained_model(model_path, model_base, model_name, load_8bit=False, l
         vision_tower = model.get_vision_tower()
         if not vision_tower.is_loaded:
             vision_tower.load_model()
+        if lora_pt:
+            print(f"Loading ViT-LoRA weights from {lora_pt}")
+            vision_tower = PeftModel.from_pretrained(vision_tower, lora_pt)
+            print(f"Merging weights")
+            vision_tower = vision_tower.merge_and_unload()
         vision_tower.to(device=device, dtype=torch.float16)
         image_processor = vision_tower.image_processor
 

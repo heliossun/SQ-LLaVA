@@ -100,9 +100,12 @@ class TrainingArguments(transformers.TrainingArguments):
         default=16,
         metadata={"help": "How many bits to use."}
     )
+    vit_lora_enable: bool = False
     lora_enable: bool = False
     lora_r: int = 64
     lora_alpha: int = 16
+    lora_alpha_vit: int = 32
+    lora_r_vit: int = 64
     lora_dropout: float = 0.05
     lora_weight_path: str = ""
     lora_bias: str = "none"
@@ -1092,21 +1095,6 @@ def train():
             bias=training_args.lora_bias,
             task_type="CAUSAL_LM",
         )
-        # lora_config = AdaLoraConfig(
-        #     r=training_args.lora_r,
-        #     beta1=0.85,
-        #     beta2=0.85,
-        #     tinit=200,
-        #     tfinal=1000,
-        #     deltaT=10,
-        #     init_r=64,
-        #     target_r=128,
-        #     lora_alpha=training_args.lora_alpha,
-        #     target_modules=['q_proj','v_proj'],
-        #     lora_dropout=training_args.lora_dropout,
-        #     task_type="CAUSAL_LM",
-        #     inference_mode=False,
-        # )
         if training_args.bits == 16:
             if training_args.bf16:
                 model.to(torch.bfloat16)
@@ -1175,41 +1163,33 @@ def train():
 
         if training_args.bits in [4, 8]:
             model.get_model().mm_projector.to(dtype=compute_dtype, device=training_args.device)
-        if training_args.vision_tower_lr is not None:
+        if training_args.vit_lora_enable:
             config = LoraConfig(
-                r=32,
-                lora_alpha=64,
-                target_modules=["q_proj", "v_proj"],
+                r=training_args.lora_r_vit,
+                lora_alpha=training_args.lora_alpha_vit,
+                target_modules=["q_proj", "v_proj", "k_proj","out_proj"],
                 lora_dropout=0.1,
                 bias="none",
             )
             vision_tower = get_peft_model(vision_tower, config)
         if model_args.pretrain_lora:
-            config = LoraConfig(
-                r=32,
-                lora_alpha=64,
-                target_modules=["q_proj", "v_proj"],
-                lora_dropout=0.1,
-                bias="none",
-            )
-            vision_tower = get_peft_model(vision_tower, config)
-            
-            checkpoint_name = model_args.pretrain_lora
-            model_args.pretrain_lora = (
-                False  # So the trainer won't try loading its state
-            )
+            if training_args.vit_lora_enable:
+                checkpoint_name = model_args.pretrain_lora
+                model_args.pretrain_lora = (
+                    False  # So the trainer won't try loading its state
+                )
             # The two files above have a different name depending on how they were saved, but are actually the same.
             if os.path.exists(checkpoint_name):
-                print(f"Restarting from {checkpoint_name}")
+                rank0_print(f"Loading ViT-LoRA weights from {checkpoint_name}")
                 adapters_weights = torch.load(checkpoint_name)
-                adapters_weights = {("base_model.model."+k[19:] if k.startswith('model.vision_tower.') else k): v for k, v in
-                                       adapters_weights.items()}
-                vision_tower.load_state_dict(adapters_weights, strict=False)
+
+                set_peft_model_state_dict(vision_tower, adapters_weights)
+                #vision_tower.load_state_dict(adapters_weights, strict=False)
             else:
-                print(f"Checkpoint {checkpoint_name} not found")
+                rank0_print(f"Checkpoint {checkpoint_name} not found")
                 
-            for p in vision_tower.parameters():
-                p.requires_grad = False
+            # for p in vision_tower.parameters():
+            #     p.requires_grad = False
         vision_tower.to(dtype=torch.bfloat16 if training_args.bf16 else torch.float16, device=training_args.device)
         data_args.image_processor = vision_tower.image_processor
         model.config.mm_use_im_start_end = data_args.mm_use_im_start_end = model_args.mm_use_im_start_end
@@ -1218,7 +1198,7 @@ def train():
         model.config.vision_tower_lr = training_args.vision_tower_lr
         model.config.mm_use_im_patch_token = model_args.mm_use_im_patch_token
         model.initialize_vision_tokenizer(model_args, tokenizer=tokenizer)
-    #rank0_print("Trainable parameters")
+    # rank0_print("Trainable parameters")
     # for k,v in model.named_parameters():
     #     if v.requires_grad:
     #         rank0_print(k)
@@ -1274,11 +1254,11 @@ def train():
     else:
         safe_save_model_for_hf_trainer(trainer=trainer,
                                        output_dir=training_args.output_dir)
-        if trainer.args.vision_tower_lr is not None:
-            print("saving lora ckpt for vision tower")
-            v_tower_lora = get_peft_state_maybe_zero_3(trainer.model.named_parameters(),training_args.lora_bias)
-            #print(v_tower_lora.keys())
-            torch.save(v_tower_lora, os.path.join(training_args.output_dir, 'vision_encoder_lora.bin'))
+    if training_args.vit_lora_enable:
+        rank0_print("saving lora ckpt for vision tower")
+        v_tower_lora = get_peft_state_maybe_zero_3(vision_tower.named_parameters(), training_args.lora_bias)
+        # print(v_tower_lora.keys())
+        vision_tower.save_pretrained(os.path.join(training_args.output_dir, 'Vit-lora'), state_dict=v_tower_lora)
 
 
 if __name__ == "__main__":
