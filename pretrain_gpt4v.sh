@@ -12,7 +12,7 @@ deepspeed train_mem.py \
     --mm_use_im_start_end False \
     --mm_use_im_patch_token False \
     --bf16 True \
-    --output_dir ./checkpoints/projector/Sophon-spt4v-v1.7-pretrain-ViT-LoRA-mlp \
+    --output_dir ./checkpoints/projector/Sophon-spt4v-v1.7-pretrain-ViT-LoRAv2-mlp \
     --num_train_epochs 1 \
     --per_device_train_batch_size 16 \
     --per_device_eval_batch_size 4 \
@@ -24,8 +24,8 @@ deepspeed train_mem.py \
     --learning_rate 2e-4 \
     --vision_tower_lr 2e-4 \
     --vit_lora_enable \
-    --lora_alpha_vit 32 \
-    --lora_r_vit 64 \
+    --lora_alpha_vit 64 \
+    --lora_r_vit 32 \
     --weight_decay 0. \
     --warmup_ratio 0.03 \
     --lr_scheduler_type "cosine" \

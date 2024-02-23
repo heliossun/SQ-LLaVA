@@ -6,8 +6,8 @@ deepspeed train_mem.py \
     --data_path ./mixTraindata/llava_v1_5_mix665k.json \
     --image_folder ./mixTraindata \
     --vision_tower openai/clip-vit-large-patch14-336 \
-    --pretrain_lora  ./checkpoints/projector/Sophon-llava-v1.7-pretrain-ViT-LoRA-mlp/Vit-lora/adapter_model.bin \
-    --pretrain_mm_mlp_adapter ./checkpoints/projector/Sophon-llava-v1.7-pretrain-ViT-LoRA-mlp/mm_projector.bin \
+    --pretrain_lora  ./checkpoints/projector/Sophon-llava-v1.7-pretrain-ViT-LoRAv2-mlp/Vit-lora/adapter_model.bin \
+    --pretrain_mm_mlp_adapter ./checkpoints/projector/Sophon-llava-v1.7-pretrain-ViT-LoRAv2-mlp/mm_projector.bin \
     --mm_projector_type mlp2x_gelu \
     --mm_vision_select_layer -2 \
     --mm_use_im_start_end False \
@@ -15,7 +15,7 @@ deepspeed train_mem.py \
     --image_aspect_ratio pad \
     --group_by_modality_length True \
     --bf16 True \
-    --output_dir ./checkpoints/llava-Sophon-v1.8-7b-vlora-665k \
+    --output_dir ./checkpoints/llava-Sophon-v1.8-7b-vlorav2-665k \
     --num_train_epochs 1 \
     --per_device_train_batch_size 8 \
     --per_device_eval_batch_size 6 \
@@ -27,8 +27,8 @@ deepspeed train_mem.py \
     --learning_rate 2e-4 \
     --vision_tower_lr 2e-5 \
     --vit_lora_enable \
-    --lora_alpha_vit 32 \
-    --lora_r_vit 64 \
+    --lora_alpha_vit 64 \
+    --lora_r_vit 32 \
     --weight_decay 0. \
     --warmup_ratio 0.03 \
     --lr_scheduler_type "cosine" \

@@ -167,12 +167,11 @@ def get_mm_adapter_state_maybe_zero_3(named_params, keys_to_match):
     return to_return
 
 
-def find_all_linear_names(model):
+def find_all_linear_names(model, prevent_keywords=[]):
     cls = torch.nn.Linear
     lora_module_names = set()
-    multimodal_keywords = ['mm_projector', 'vision_tower', 'vision_resampler','latent_tokens','crossA_layer']
     for name, module in model.named_modules():
-        if any(mm_keyword in name for mm_keyword in multimodal_keywords):
+        if any(mm_keyword in name for mm_keyword in prevent_keywords):
             continue
         if isinstance(module, cls):
             names = name.split('.')
@@ -1090,7 +1089,7 @@ def train():
         lora_config = LoraConfig(
             r=training_args.lora_r,
             lora_alpha=training_args.lora_alpha,
-            target_modules=find_all_linear_names(model),
+            target_modules=find_all_linear_names(model, ['mm_projector', 'vision_tower', 'vision_resampler','latent_tokens','crossA_layer']),
             lora_dropout=training_args.lora_dropout,
             bias=training_args.lora_bias,
             task_type="CAUSAL_LM",
@@ -1163,12 +1162,13 @@ def train():
 
         if training_args.bits in [4, 8]:
             model.get_model().mm_projector.to(dtype=compute_dtype, device=training_args.device)
+        #print(find_all_linear_names(vision_tower))
         if training_args.vit_lora_enable:
             config = LoraConfig(
                 r=training_args.lora_r_vit,
                 lora_alpha=training_args.lora_alpha_vit,
-                target_modules=["q_proj", "v_proj", "k_proj","out_proj"],
-                lora_dropout=0.1,
+                target_modules=find_all_linear_names(vision_tower),
+                lora_dropout=0.3,
                 bias="none",
             )
             vision_tower = get_peft_model(vision_tower, config)
