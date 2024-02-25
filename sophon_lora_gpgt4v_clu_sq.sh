@@ -2,7 +2,7 @@ deepspeed train_mem.py \
     --lora_enable True --lora_r 128 --lora_alpha 256 --mm_projector_lr 2e-5 \
     --deepspeed ./scripts/zero3.json \
     --model_name_or_path ./checkpoints/ShareGPT4V-7B_Pretrained_vit-large336-l12_vicuna-7b-v1.5 \
-    --version v1 \
+    --version v1_sq \
     --data_path ./mixTraindata/sharegpt4v_mix665k_cap23k_coco-ap9k_lcs3k_sam9k_div2k.json \
     --image_folder ./mixTraindata \
     --vision_tower Lin-Chen/ShareGPT4V-7B_Pretrained_vit-large336-l12 \
@@ -14,7 +14,7 @@ deepspeed train_mem.py \
     --image_aspect_ratio pad \
     --group_by_modality_length True \
     --bf16 True \
-    --output_dir ./checkpoints/llava-Sophon-v1.7-7b-lora-gpt4v-cluster-vlora \
+    --output_dir ./checkpoints/llava-Sophon-v1.7-7b-lora-gpt4v-cluster-sq-vlora \
     --num_train_epochs 1 \
     --per_device_train_batch_size 12 \
     --per_device_eval_batch_size 6 \
@@ -39,5 +39,6 @@ deepspeed train_mem.py \
     --lazy_preprocess True \
     --report_to None \
     --data_aug False \
+    --sq_r 0.3\
     
     
