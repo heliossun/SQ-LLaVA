@@ -1162,22 +1162,19 @@ def train():
 
         if training_args.bits in [4, 8]:
             model.get_model().mm_projector.to(dtype=compute_dtype, device=training_args.device)
-        #print(find_all_linear_names(vision_tower))
         if training_args.vit_lora_enable:
             config = LoraConfig(
                 r=training_args.lora_r_vit,
                 lora_alpha=training_args.lora_alpha_vit,
                 target_modules=find_all_linear_names(vision_tower),
-                lora_dropout=0.3,
+                lora_dropout=0.2,
                 bias="none",
             )
             vision_tower = get_peft_model(vision_tower, config)
         if model_args.pretrain_lora:
-            if training_args.vit_lora_enable:
-                checkpoint_name = model_args.pretrain_lora
-                model_args.pretrain_lora = (
-                    False  # So the trainer won't try loading its state
-                )
+            checkpoint_name = model_args.pretrain_lora
+            
+            model_args.pretrain_lora = (False  # So the trainer won't try loading its state)
             # The two files above have a different name depending on how they were saved, but are actually the same.
             if os.path.exists(checkpoint_name):
                 rank0_print(f"Loading ViT-LoRA weights from {checkpoint_name}")

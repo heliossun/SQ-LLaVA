@@ -27,8 +27,8 @@ deepspeed train_mem.py \
     --learning_rate 2e-4 \
     --vision_tower_lr 2e-5 \
     --vit_lora_enable \
-    --lora_alpha_vit 64 \
-    --lora_r_vit 32 \
+    --lora_alpha_vit 128 \
+    --lora_r_vit 64 \
     --weight_decay 0. \
     --warmup_ratio 0.03 \
     --lr_scheduler_type "cosine" \
