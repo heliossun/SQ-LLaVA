@@ -1174,7 +1174,7 @@ def train():
         if model_args.pretrain_lora:
             checkpoint_name = model_args.pretrain_lora
             
-            model_args.pretrain_lora = (False  # So the trainer won't try loading its state)
+            model_args.pretrain_lora = False  # So the trainer won't try loading its state)
             # The two files above have a different name depending on how they were saved, but are actually the same.
             if os.path.exists(checkpoint_name):
                 rank0_print(f"Loading ViT-LoRA weights from {checkpoint_name}")
