@@ -24,7 +24,7 @@ deepspeed train_mem.py \
     --learning_rate 2e-4 \
     --vision_tower_lr 2e-4 \
     --vit_lora_enable \
-    --lora_alpha_vit 65 \
+    --lora_alpha_vit 64 \
     --lora_r_vit 32 \
     --weight_decay 0. \
     --warmup_ratio 0.03 \
