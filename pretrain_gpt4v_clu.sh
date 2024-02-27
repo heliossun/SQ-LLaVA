@@ -6,13 +6,14 @@ deepspeed train_mem.py \
     --data_path ./mixTraindata/share-captioner_coco_lcs_sam_1246k_1107.json \
     --image_folder ./mixTraindata\
     --vision_tower Lin-Chen/ShareGPT4V-7B_Pretrained_vit-large336-l12 \
+    --pretrain_mm_mlp_adapter ./checkpoints/projector/Sophon-7b-prerain-cluster/mm_projector.bin \
     --mm_projector_type cluster \
     --tune_mm_mlp_adapter True \
     --mm_vision_select_layer -2 \
     --mm_use_im_start_end False \
     --mm_use_im_patch_token False \
     --bf16 True \
-    --output_dir ./checkpoints/projector/Sophon-spt4v-v1.7-pretrain-cluster \
+    --output_dir ./checkpoints/projector/sqllva-spt4v-v1.7-pretrain-cluster \
     --num_train_epochs 1 \
     --per_device_train_batch_size 16 \
     --per_device_eval_batch_size 4 \
@@ -21,7 +22,7 @@ deepspeed train_mem.py \
     --save_strategy "steps" \
     --save_steps 24000 \
     --save_total_limit 1 \
-    --learning_rate 1e-3 \
+    --learning_rate 2e-5 \
     --weight_decay 0. \
     --warmup_ratio 0.03 \
     --lr_scheduler_type "cosine" \
