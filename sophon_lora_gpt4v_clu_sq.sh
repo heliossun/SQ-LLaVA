@@ -6,7 +6,8 @@ deepspeed train_mem.py \
     --data_path ./mixTraindata/sharegpt4v_mix665k_cap23k_coco-ap9k_lcs3k_sam9k_div2k.json \
     --image_folder ./mixTraindata \
     --vision_tower Lin-Chen/ShareGPT4V-7B_Pretrained_vit-large336-l12 \
-    --pretrain_mm_mlp_adapter ./checkpoints/projector/sqllva-spt4v-v1.7-pretrain-cluster/mm_projector.bin \
+    --pretrain_mm_mlp_adapter ./checkpoints/projector/sqllava-spt4v-v1.7-pretrain-ViT-LoRAv2-cluster/mm_projector.bin \
+    --pretrain_lora  ./checkpoints/projector/sqllava-spt4v-v1.7-pretrain-ViT-LoRAv2-cluster/Vit-lora/adapter_model.bin \
     --mm_projector_type cluster \
     --mm_vision_select_layer -2 \
     --mm_use_im_start_end False \
@@ -14,7 +15,7 @@ deepspeed train_mem.py \
     --image_aspect_ratio pad \
     --group_by_modality_length True \
     --bf16 True \
-    --output_dir ./checkpoints/sqllava-v1.7-7b-lora-gpt4v-cluster-sq-vloraPTonly \
+    --output_dir ./checkpoints/sqllava-v1.7-7b-lora-gpt4v-vlora-cluster-sq50 \
     --num_train_epochs 1 \
     --per_device_train_batch_size 8 \
     --per_device_eval_batch_size 6 \
@@ -24,7 +25,7 @@ deepspeed train_mem.py \
     --save_steps 50000 \
     --save_total_limit 2 \
     --learning_rate 2e-4 \
-    --vision_tower_lr 2e-4 \
+    --vision_tower_lr 2e-5 \
     --vit_lora_enable \
     --lora_alpha_vit 64 \
     --lora_r_vit 32 \
@@ -39,6 +40,6 @@ deepspeed train_mem.py \
     --lazy_preprocess True \
     --report_to None \
     --data_aug False \
-    --sq_r 0.3\
+    --sq_r 0.5\
     
     
