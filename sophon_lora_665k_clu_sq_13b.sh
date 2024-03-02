@@ -6,6 +6,7 @@ deepspeed train_mem.py \
     --data_path ./mixTraindata/llava_v1_5_mix665k.json \
     --image_folder ./mixTraindata \
     --vision_tower openai/clip-vit-large-patch14-336 \
+    --pretrain_mm_mlp_adapter ./checkpoints/projector/sqllva-llava-13b-v1.7-pretrain-cluster/mm_projector.bin \
     --mm_projector_type cluster \
     --mm_vision_select_layer -2 \
     --mm_use_im_start_end False \
