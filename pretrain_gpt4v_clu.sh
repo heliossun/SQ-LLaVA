@@ -13,7 +13,7 @@ deepspeed train_mem.py \
     --mm_use_im_start_end False \
     --mm_use_im_patch_token False \
     --bf16 True \
-    --output_dir ./checkpoints/projector/sqllava-13b-spt4v-v1.7-pretrain-cluster \
+    --output_dir ./checkpoints/projector/sqllava-shpt4-13b-spt4v-v1.7-pretrain-cluster \
     --num_train_epochs 1 \
     --per_device_train_batch_size 16 \
     --per_device_eval_batch_size 4 \
