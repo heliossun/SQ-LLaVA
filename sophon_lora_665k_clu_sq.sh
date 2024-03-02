@@ -25,6 +25,7 @@ deepspeed train_mem.py \
     --save_steps 50000 \
     --save_total_limit 2 \
     --learning_rate 2e-4 \
+    --vit_lora_enable \
     --weight_decay 0. \
     --warmup_ratio 0.03 \
     --lr_scheduler_type "cosine" \
