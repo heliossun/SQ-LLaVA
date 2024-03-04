@@ -1,7 +1,7 @@
 deepspeed train_mem.py \
     --lora_enable True --lora_r 128 --lora_alpha 256 --mm_projector_lr 2e-5 \
     --deepspeed ./scripts/zero3.json \
-    --model_name_or_path ./checkpoints/sharegpt4v-13b-pretrain \
+    --model_name_or_path ./checkpoints/ShareGPT4V-13B_Pretrained_vit-large336-l12_vicuna-13b-v1.5 \
     --version v1_sq \
     --data_path ./mixTraindata/sharegpt4v_mix665k_cap23k_coco-ap9k_lcs3k_sam9k_div2k.json \
     --image_folder ./mixTraindata \

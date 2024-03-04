@@ -1,7 +1,7 @@
 #!/bin/bash
 deepspeed train_mem.py \
     --deepspeed ./scripts/zero3.json \
-    --model_name_or_path ./checkpoints/sharegpt4v-13b-pretrain \
+    --model_name_or_path ./checkpoints/ShareGPT4V-13B_Pretrained_vit-large336-l12_vicuna-13b-v1.5 \
     --version plain \
     --data_path ./mixTraindata/share-captioner_coco_lcs_sam_1246k_1107.json \
     --image_folder ./mixTraindata\
