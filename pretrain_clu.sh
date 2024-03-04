@@ -12,7 +12,7 @@ deepspeed train_mem.py \
     --mm_use_im_start_end False \
     --mm_use_im_patch_token False \
     --bf16 True \
-    --output_dir ./checkpoints/projector/sqllva-llava-13b-v1.7-pretrain-cluster \
+    --output_dir ./checkpoints/projector/sqllva-llava-13b-v1.7-pretrain-vlora-cluster \
     --num_train_epochs 1 \
     --per_device_train_batch_size 16 \
     --per_device_eval_batch_size 4 \
@@ -22,6 +22,10 @@ deepspeed train_mem.py \
     --save_steps 24000 \
     --save_total_limit 1 \
     --learning_rate 1e-3 \
+    --vision_tower_lr 2e-4 \
+    --vit_lora_enable \
+    --lora_alpha_vit 128 \
+    --lora_r_vit 64 \
     --weight_decay 0. \
     --warmup_ratio 0.03 \
     --lr_scheduler_type "cosine" \
