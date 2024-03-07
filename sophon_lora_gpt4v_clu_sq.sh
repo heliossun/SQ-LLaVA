@@ -15,7 +15,7 @@ deepspeed train_mem.py \
     --group_by_modality_length True \
     --bf16 True \
     --output_dir ./checkpoints/sqllava-v1.7-13b-lora-gpt4v-vloraPTonly2-cluster-sq50 \
-    --num_train_epochs 1 \
+    --num_train_epochs 1.2 \
     --per_device_train_batch_size 4 \
     --per_device_eval_batch_size 6 \
     --gradient_accumulation_steps 2 \
