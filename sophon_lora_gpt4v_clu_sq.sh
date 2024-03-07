@@ -15,10 +15,10 @@ deepspeed train_mem.py \
     --group_by_modality_length True \
     --bf16 True \
     --output_dir ./checkpoints/sqllava-v1.7-13b-lora-gpt4v-vloraPTonly2-cluster-sq50 \
-    --num_train_epochs 1.2 \
-    --per_device_train_batch_size 4 \
+    --num_train_epochs 1 \
+    --per_device_train_batch_size 8 \
     --per_device_eval_batch_size 6 \
-    --gradient_accumulation_steps 2 \
+    --gradient_accumulation_steps 1 \
     --evaluation_strategy "no" \
     --save_strategy "steps" \
     --save_steps 50000 \
@@ -26,8 +26,8 @@ deepspeed train_mem.py \
     --learning_rate 2e-4 \
     --vision_tower_lr 2e-4 \
     --vit_lora_enable \
-    --lora_alpha_vit 128 \
-    --lora_r_vit 64 \
+    --lora_alpha_vit 64 \
+    --lora_r_vit 32 \
     --weight_decay 0. \
     --warmup_ratio 0.03 \
     --lr_scheduler_type "cosine" \
