@@ -1,7 +1,7 @@
 #!/bin/bash
 deepspeed train_mem.py \
     --deepspeed ./scripts/zero3.json \
-    --model_name_or_path lmsys/vicuna-13b-v1.5 \
+    --model_name_or_path lmsys/vicuna-7b-v1.5 \
     --version plain \
     --data_path ./mixTraindata/blip_laion_cc_sbu_558k.json \
     --image_folder ./mixTraindata/llava/llava_pretrain/images \
@@ -12,7 +12,7 @@ deepspeed train_mem.py \
     --mm_use_im_start_end False \
     --mm_use_im_patch_token False \
     --bf16 True \
-    --output_dir ./checkpoints/projector/sqllva-llava-13b-v1.7-pretrain-vlora-cluster \
+    --output_dir ./checkpoints/projector/sqllva-llava-7b-v1.7-pretrain-vlora-v3-cluster \
     --num_train_epochs 1 \
     --per_device_train_batch_size 16 \
     --per_device_eval_batch_size 4 \

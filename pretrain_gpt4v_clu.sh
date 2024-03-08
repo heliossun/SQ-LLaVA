@@ -34,3 +34,7 @@ deepspeed train_mem.py \
     --lazy_preprocess True \
     --report_to wandb \
     --data_aug False
+
+
+# pre_train clu for 13b sqllava-shpt4-13b-spt4v-v1.7-pretrain-cluster
+# pretrain clu for 7b sqllva-spt4v-v1.7-pretrain-cluster
