@@ -1,12 +1,12 @@
 deepspeed train_mem.py \
     --lora_enable True --lora_r 128 --lora_alpha 256 --mm_projector_lr 2e-5 \
     --deepspeed ./scripts/zero3.json \
-    --model_name_or_path lmsys/vicuna-7b-v1.5 \
+    --model_name_or_path lmsys/vicuna-13b-v1.5 \
     --version v1_sq \
     --data_path ./mixTraindata/llava_v1_5_mix665k.json \
     --image_folder ./mixTraindata \
-    --vision_tower Lin-Chen/ShareGPT4V-7B_Pretrained_vit-large336-l12 \
-    --pretrain_mm_mlp_adapter ./checkpoints/projector/Sophon-7b-pretrain-cluster/mm_projector.bin \
+    --vision_tower openai/clip-vit-large-patch14-336 \
+    --pretrain_mm_mlp_adapter ./checkpoints/projector/sqllva-llava-13b-v1.7-pretrain-cluster/mm_projector.bin \
     --mm_projector_type cluster \
     --mm_vision_select_layer -2 \
     --mm_use_im_start_end False \
@@ -14,16 +14,16 @@ deepspeed train_mem.py \
     --image_aspect_ratio pad \
     --group_by_modality_length True \
     --bf16 True \
-    --output_dir ./checkpoints/llava-Sophon-v1.6-7b-lora-665k-sq50-cluster-newEncoder \
+    --output_dir ./checkpoints/sqllava-13b-lora-665k-sq50-cluster \
     --num_train_epochs 1 \
-    --per_device_train_batch_size 12 \
+    --per_device_train_batch_size 8 \
     --per_device_eval_batch_size 6 \
-    --gradient_accumulation_steps 2 \
+    --gradient_accumulation_steps 1 \
     --evaluation_strategy "no" \
     --save_strategy "steps" \
     --save_steps 50000 \
     --save_total_limit 2 \
-    --learning_rate 3e-4 \
+    --learning_rate 2e-4 \
     --weight_decay 0. \
     --warmup_ratio 0.03 \
     --lr_scheduler_type "cosine" \

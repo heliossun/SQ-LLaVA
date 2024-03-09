@@ -1,7 +1,7 @@
 #!/bin/bash
 deepspeed train_mem.py \
     --deepspeed ./scripts/zero3.json \
-    --model_name_or_path lmsys/vicuna-7b-v1.5 \
+    --model_name_or_path lmsys/vicuna-13b-v1.5 \
     --version plain \
     --data_path ./mixTraindata/blip_laion_cc_sbu_558k.json \
     --image_folder ./mixTraindata/llava/llava_pretrain/images \
@@ -11,12 +11,13 @@ deepspeed train_mem.py \
     --mm_vision_select_layer -2 \
     --mm_use_im_start_end False \
     --mm_use_im_patch_token False \
+    --pretrain_mm_mlp_adapter ./checkpoints/projector/llava-v1.5-mlp2x-336px-pretrain-vicuna-13b-v1.5/mm_projector.bin \
     --bf16 True \
-    --output_dir ./checkpoints/projector/Sophon-llava-v1.7-pretrain-ViT-LoRAv2-mlp \
+    --output_dir ./checkpoints/projector/sqllava-665k-13b-pretrain-VLoRAv2-mlp \
     --num_train_epochs 1 \
     --per_device_train_batch_size 16 \
     --per_device_eval_batch_size 4 \
-    --gradient_accumulation_steps 2 \
+    --gradient_accumulation_steps 1 \
     --evaluation_strategy "no" \
     --save_strategy "steps" \
     --save_steps 24000 \
@@ -24,8 +25,8 @@ deepspeed train_mem.py \
     --learning_rate 2e-4 \
     --vision_tower_lr 2e-4 \
     --vit_lora_enable \
-    --lora_alpha_vit 64 \
-    --lora_r_vit 32 \
+    --lora_alpha_vit 128 \
+    --lora_r_vit 64 \
     --weight_decay 0. \
     --warmup_ratio 0.03 \
     --lr_scheduler_type "cosine" \

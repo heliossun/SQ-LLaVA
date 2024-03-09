@@ -1,7 +1,7 @@
 #!/bin/bash
 deepspeed train_mem.py \
     --deepspeed ./scripts/zero3.json \
-    --model_name_or_path lmsys/vicuna-7b-v1.5 \
+    --model_name_or_path lmsys/vicuna-b-v1.5 \
     --version plain \
     --data_path ./mixTraindata/blip_laion_cc_sbu_558k.json \
     --image_folder ./mixTraindata/llava/llava_pretrain/images \
@@ -37,3 +37,7 @@ deepspeed train_mem.py \
     --lazy_preprocess True \
     --report_to wandb \
     --data_aug False \
+
+# sqllva-llava-7b-v1.7-pretrain-vlora-v3-cluster 64 128
+# sqllva-llava-13b-v1.7-pretrain-vlora-cluster 64 128
+# sqllva-llava-13b-v1.7-pretrain-cluster

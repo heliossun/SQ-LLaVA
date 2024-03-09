@@ -1,12 +1,12 @@
 deepspeed train_mem.py \
     --lora_enable True --lora_r 128 --lora_alpha 256 --mm_projector_lr 2e-5 \
     --deepspeed ./scripts/zero3.json \
-    --model_name_or_path ./checkpoints/ShareGPT4V-7B_Pretrained_vit-large336-l12_vicuna-7b-v1.5 \
+    --model_name_or_path ./checkpoints/ShareGPT4V-13B_Pretrained_vit-large336-l12_vicuna-13b-v1.5 \
     --version v1_sq \
     --data_path ./mixTraindata/sharegpt4v_mix665k_cap23k_coco-ap9k_lcs3k_sam9k_div2k.json \
     --image_folder ./mixTraindata \
-    --vision_tower Lin-Chen/ShareGPT4V-7B_Pretrained_vit-large336-l12 \
-    --pretrain_mm_mlp_adapter ./checkpoints/projector/sqllva-spt4v-v1.7-pretrain-cluster/mm_projector.bin \
+    --vision_tower Lin-Chen/ShareGPT4V-13B_Pretrained_vit-large336-l12 \
+    --pretrain_mm_mlp_adapter ./checkpoints/projector/sqllava-shpt4-13b-spt4v-v1.7-pretrain-cluster/mm_projector.bin \
     --mm_projector_type cluster \
     --mm_vision_select_layer -2 \
     --mm_use_im_start_end False \
@@ -14,7 +14,7 @@ deepspeed train_mem.py \
     --image_aspect_ratio pad \
     --group_by_modality_length True \
     --bf16 True \
-    --output_dir ./checkpoints/sqllava-v1.7-7b-gpt4v-sq50-cluster \
+    --output_dir ./checkpoints/sqllava-v1.7-13b-gpt4v-sq50-cluster \
     --num_train_epochs 1 \
     --per_device_train_batch_size 8 \
     --per_device_eval_batch_size 6 \
