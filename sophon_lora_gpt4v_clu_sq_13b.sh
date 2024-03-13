@@ -14,8 +14,8 @@ deepspeed train_mem.py \
     --image_aspect_ratio pad \
     --group_by_modality_length True \
     --bf16 True \
-    --output_dir ./checkpoints/sqllava-v1.7-13b-lora-gpt4v-vloraPTonly-v3-cluster-sq50 \
-    --num_train_epochs 1 \
+    --output_dir ./checkpoints/sqllava-v1.7-13b-lora-gpt4v-vloraPTonly-v4-cluster-sq50 \
+    --num_train_epochs 1.2 \
     --per_device_train_batch_size 8 \
     --per_device_eval_batch_size 6 \
     --gradient_accumulation_steps 1 \
@@ -24,7 +24,7 @@ deepspeed train_mem.py \
     --save_steps 50000 \
     --save_total_limit 2 \
     --learning_rate 2e-4 \
-    --vision_tower_lr 2e-4 \
+    --vision_tower_lr 2e-5 \
     --vit_lora_enable \
     --lora_alpha_vit 128 \
     --lora_r_vit 64 \
