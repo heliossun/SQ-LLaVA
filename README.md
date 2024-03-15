@@ -1,10 +1,8 @@
 # Self-questioning for Vision-Language Assistant
 
-- [x] Self-questioning
-- [x] Cross-attention as vision projector
-- [x] Data augmentation
-- [x] Light-weight
-- [x] Prototype extractor
+- [x] Visual Self-questioning
+- [x] Question Answering
+- [x] Prototype Extractor
 
 
 ## Contents
