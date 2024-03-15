@@ -44,12 +44,6 @@ pip install flash-attn --no-build-isolation
 | [share-captioner_coco_lcs_sam_1246k_1107.json](https://huggingface.co/datasets/Lin-Chen/ShareGPT4V/blob/main/share-captioner_coco_lcs_sam_1246k_1107.json) | 1.5 GB |
 | [sharegpt4v_mix665k_cap23k_coco-ap9k_lcs3k_sam9k_div2k.json](https://huggingface.co/datasets/Lin-Chen/ShareGPT4V/blob/main/sharegpt4v_mix665k_cap23k_coco-ap9k_lcs3k_sam9k_div2k.json) | 1.2 GB |
 
-### ShareGPT4V Dataset
-This dataset is curated from LAION, CC, SBU, SAM, COCO, web-landmark, web-celebrity, wikiart, etc, resulting in total 102K high-quality image-text pairs with the help of powerful GPT4-Vision.
-
-### ShareGPT4V-PT Dataset
-The pretraining dataset used in this release is a mixture of LAION, CC, SBU, SAM, COCO datasets, resulting in total 1246K image-text pairs with the help of our general ShareCaptioner
-
 ### Prepare Images
 
 For your convinence, please follow [`download_data.sh`](https://github.com/heliossun/Visual-self-QA/edit/main/download_data.sh) for data preparation.
@@ -115,13 +109,13 @@ Both hyperparameters used in pretraining and finetuning are provided below.
 
 | Hyperparameter | Global Batch Size | Learning rate | Epochs | Max length | Weight decay |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| LLaVA-v1.5-7B | 256 | 2e-4 | 1 | 2048 | 0 |
+| SQ-LLaVA | 256 | 2e-4 | 1 | 2048 | 0 |
 
 2. Finetuning
 
 | Hyperparameter | Global Batch Size | Learning rate | Epochs | Max length | Weight decay |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| LLaVA-v1.5-7B | 192 | 1e-4 | 4 | 2048 | 0 |
+| SQ-LLaVA | 128 | 1e-4 | 4 | 2048 | 0 |
 
 
 ### Pretraining (feature alignment)
@@ -152,23 +146,6 @@ Training script with DeepSpeed ZeRO-3 and lora: [`lora_instruct_tuning835k.sh`](
 3. Training with self-questioning
 - `--version v1_sq`. 
 
-## Experiments Tracker
-
-| Stage    | Dataset | Cluster | SQ |  Lr  | Epochs |             Name            | Location | Status |
-|----------|---------|:-------:|:--:|:----:|:------:|:---------------------------:|:--------:|:------:|
-| Pretrain | LLaVA   |    Y    |  N | 2e-4 |    1   | Sophon-7b-pretrain-clu-558k |  Dr. Qin | Runing |
-| Pretrain | LLaVA   |    N    |  N | 2e-4 |    1   |                             |  Dr. Qin |        |
-| Pretrain | LLaVA   |    Y    |  N | 1e-4 |    2   |                             |  Dr. Qin |        |
-|          |         |         |    |      |        |                             |          |        |
-| Pretrain | GPT4v   |    Y    |  N | 2e-4 |    1   |                             |  Dr. Qin |        |
-| Pretrain | GPT4v   |    N    |  N | 2e-4 |    1   |                             |  Dr. Qin |        |
-| Pretrain | GPT4v   |    Y    |  N | 1e-4 |    2   |                             |  Dr. Qin |        |
-|          |         |         |    |      |        |                             |          |        |
-| Finetune | LLaVA   |    Y    |  N | 2e-4 |    1   |                             |  Dr. Qin |        |
-| Finetune | LLaVA   |    N    |  N | 2e-4 |    1   |                             |  Dr. Qin |        |
-| Finetune | LLaVA   |    Y    |  Y | 1e-4 |    4   | Sophon-7b-lora-665k-cq-4epo |  Dr. Qin |        |
-|          |         |         |    |      |        |                             |          |        |
-|          |         |         |    |      |        |                             |          |        |
 
 ## Evaluation
 Prepare data
@@ -188,4 +165,4 @@ See [Evaluation.md](https://github.com/haotian-liu/LLaVA/blob/main/docs/Evaluati
 
 - [LLaVA](https://github.com/haotian-liu/LLaVA): the codebase we built upon.
 
-## Related Projects
+
