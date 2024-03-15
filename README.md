@@ -1,10 +1,4 @@
 # Self-questioning for Vision-Language Assistant
-
-- [x] Visual Self-questioning
-- [x] Question Answering
-- [x] Prototype Extractor
-
-
 ## Contents
 - [Install](#install)
 - [LLaVA Weights](#llava-weights)
