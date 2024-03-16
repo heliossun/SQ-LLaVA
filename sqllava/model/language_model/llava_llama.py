@@ -13,7 +13,7 @@ from transformers import AutoConfig, AutoModelForCausalLM, \
 from transformers.modeling_outputs import CausalLMOutputWithPast
 
 from ..llava_arch import LlavaMetaModel, LlavaMetaForCausalLM
-from llava.model.WD_loss import WassersteinDisloss
+from sqllava.model.WD_loss import WassersteinDisloss
 from torch.nn.functional import normalize
 
 class LlavaConfig(LlamaConfig):
