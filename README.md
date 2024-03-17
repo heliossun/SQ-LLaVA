@@ -122,7 +122,7 @@ We have also provided a pre-trained weights for the pretraining stage, please do
 ### Visual Instruction Tuning
 
 Instruction tuning:
-Training script with DeepSpeed ZeRO-3 and lora: [`finetune_lora_clu_sq.sh`](heliossun/SQ-LLaVA/blob/main/scripts/finetune_lora_clu_sq.sh).
+Training script with DeepSpeed ZeRO-3 and lora: [`finetune_lora_clu_sq.sh`](https://github.com/heliossun/SQ-LLaVA/blob/main/scripts/finetune_lora_clu_sq.sh).
 
 
 - `--mm_projector_type cluster`: the prototype extractor & a two-layer MLP vision-language connector.
@@ -138,15 +138,29 @@ Training script with DeepSpeed ZeRO-3 and lora: [`finetune_lora_clu_sq.sh`](heli
 Prepare data
 Please download raw images of datasets (COCO, Flickr, nocaps, conceptual) for image captioning tasks.
 1. Evaluate models on image captioning.
-See [captioning.sh](https://github.com/heliossun/Visual-self-QA/edit/main/experiments.sh) on 4 datasets.
+See [captioning.sh](https://github.com/heliossun/SQ-LLaVA/blob/main/scripts/eval/captioning.sh) on 4 datasets.
 2. Evaluate models on a diverse set of 12 benchmarks. To ensure the reproducibility, we evaluate the models with greedy decoding. We do not evaluate using beam search to make the inference process consistent with the chat demo of real-time outputs.
 
 See [Evaluation.md](https://github.com/haotian-liu/LLaVA/blob/main/docs/Evaluation.md).
 
 3. To test visual self-questioning
+Run [captioning.sh](https://github.com/heliossun/SQ-LLaVA/blob/main/scripts/eval/captioning.sh) with the following settings.
 - `--version v1_sq`: use the self-questioning templage.
 - `--sq`: enable the self-questioning function.
-- `--n_shot 3`: the number of generated questions. 
+- `--n_shot 3`: the number of generated questions.
+
+```bash
+  CUDA_VISIBLE_DEVICES=0 python -m sqllava.eval.model_cap \
+    --model_path ./checkpoints/path/to/ckpt/\
+    --model_base ./checkpoints/sharegpt4_pretrain \
+    --question-file ./playground/coco/question3.jsonl \
+    --image-folder path/to/coco2014/images/val2014/\
+    --answers-file ./output/coco/1200.jsonl \
+    --conv-mode="v1_sq" \
+    --lora_pretrain ./checkpoints/path/to/ckpt/Vit-lora \
+    --sq \
+    --n_shot 3 
+```
 
 ## Acknowledgement
 
