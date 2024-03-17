@@ -149,9 +149,7 @@ Run [captioning.sh](https://github.com/heliossun/SQ-LLaVA/blob/main/scripts/eval
 - `--sq`: enable the self-questioning function.
 - `--n_shot 3`: the number of generated questions.
 
-  e.g.,
-  
-  ```bash
+```bash
   CUDA_VISIBLE_DEVICES=0 python -m sqllava.eval.model_cap \
     --model_path ./checkpoints/path/to/ckpt/\
     --model_base ./checkpoints/sharegpt4_pretrain \
@@ -161,7 +159,7 @@ Run [captioning.sh](https://github.com/heliossun/SQ-LLaVA/blob/main/scripts/eval
     --conv-mode="v1_sq" \
     --lora_pretrain ./checkpoints/path/to/ckpt/Vit-lora \
     --sq \
-    --n_shot 3 \
+    --n_shot 3 
 ```
 
 ## Acknowledgement
