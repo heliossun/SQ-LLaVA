@@ -138,7 +138,7 @@ Training script with DeepSpeed ZeRO-3 and lora: [`finetune_lora_clu_sq.sh`](heli
 Prepare data
 Please download raw images of datasets (COCO, Flickr, nocaps, conceptual) for image captioning tasks.
 1. Evaluate models on image captioning.
-See [captioning.sh](https://github.com/heliossun/Visual-self-QA/edit/main/experiments.sh) on 4 datasets.
+See [captioning.sh]([https://github.com/heliossun/Visual-self-QA/edit/main/experiments.sh](https://github.com/heliossun/SQ-LLaVA/blob/main/scripts/eval/captioning.sh)) on 4 datasets.
 2. Evaluate models on a diverse set of 12 benchmarks. To ensure the reproducibility, we evaluate the models with greedy decoding. We do not evaluate using beam search to make the inference process consistent with the chat demo of real-time outputs.
 
 See [Evaluation.md](https://github.com/haotian-liu/LLaVA/blob/main/docs/Evaluation.md).
