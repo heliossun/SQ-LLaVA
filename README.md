@@ -34,7 +34,7 @@ pip install flash-attn --no-build-isolation
 | [sharegpt4v_instruct_gpt4-vision_cap100k.json](https://huggingface.co/datasets/Lin-Chen/ShareGPT4V/blob/main/sharegpt4v_instruct_gpt4-vision_cap100k.json) | 134 MB |
 | [share-captioner_coco_lcs_sam_1246k_1107.json](https://huggingface.co/datasets/Lin-Chen/ShareGPT4V/blob/main/share-captioner_coco_lcs_sam_1246k_1107.json) | 1.5 GB |
 | [sharegpt4v_mix665k_cap23k_coco-ap9k_lcs3k_sam9k_div2k.json](https://huggingface.co/datasets/Lin-Chen/ShareGPT4V/blob/main/sharegpt4v_mix665k_cap23k_coco-ap9k_lcs3k_sam9k_div2k.json) | 1.2 GB |
-| [LLaVA](https://github.com/haotian-liu/LLaVA/blob/main/docs/Data.md) | 134 MB |
+| [LLaVA](https://github.com/haotian-liu/LLaVA/blob/main/docs/Data.md) | 400 MB |
 ### Prepare Images
 
 For your convinence, please follow [`download_data.sh`](https://github.com/heliossun/SQ-LLaVA/blob/main/download_data.sh) for data preparation.
@@ -86,10 +86,9 @@ Visual-self-qa
 ├── ...
 ```
 
-**Important notice**: For the convenience, we provide a zip file for web data. These images must be used for academic purpose.
 
 ## Train
-Training consists of two stages: (1) feature alignment stage; (2) visual instruction tuning stage, teaching the model to follow multimodal instructions.
+Training consists of two stages: (1) feature alignment stage; (2) visual self-questioning instruction tuning stage, teaching the model to ask questions and follow multimodal instructions.
 
 To train on fewer GPUs, you can reduce the `per_device_train_batch_size` and increase the `gradient_accumulation_steps` accordingly. Always keep the global batch size the same: `per_device_train_batch_size` x `gradient_accumulation_steps` x `num_gpus`.
 
@@ -100,54 +99,51 @@ Both hyperparameters used in pretraining and finetuning are provided below.
 
 | Hyperparameter | Global Batch Size | Learning rate | Epochs | Max length | Weight decay |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| SQ-LLaVA | 256 | 2e-4 | 1 | 2048 | 0 |
+| SQ-LLaVA | 256 | 1e-3 | 1 | 2048 | 0 |
 
 2. Finetuning
 
 | Hyperparameter | Global Batch Size | Learning rate | Epochs | Max length | Weight decay |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| SQ-LLaVA | 128 | 1e-4 | 4 | 2048 | 0 |
+| SQ-LLaVA | 128 | 2e-4 | 4 | 2048 | 0 |
 
 
 ### Pretraining (feature alignment)
 
-Training script with DeepSpeed ZeRO-2: [`pretrain.sh`](https://github.com/heliossun/Visual-self-QA/edit/main/pretrain.sh).
+Training script with DeepSpeed ZeRO-2: [`pretrain.sh`](https://github.com/heliossun/SQ-LLaVA/blob/main/scripts/pretrain_clu.sh).
 
 - `--mm_projector_type cluster`: the prototype extractor & a two-layer MLP vision-language connector.
 - `--vision_tower openai/clip-vit-large-patch14-336`: CLIP ViT-L/14 336px.
-- 
-After pretraining, put the folder `./checkpoints/Sophon-7b-pretrain-clu-558k` under `./checkpoints/projector`.
+- `--vit_lora_enable`: optimize vision encoder using vit lora.
+After pretraining, put the folder `./checkpoints/path/to/pretrain` under `./checkpoints/projector`.
 
 We have also provided a pre-trained weights for the pretraining stage, please download [here](https://huggingface.co/ZachSun/Sophon-projector-cluster-pretrain) and put in `./checkpoints/projector`.
 
 ### Visual Instruction Tuning
 
-1. Instruction tuning with LLaVA-data:
-Training script with DeepSpeed ZeRO-3 and lora: [`lora_instruct_tuning665k_cluster.sh`]([https://github.com/heliossun/Visual-self-QA/lora_instruct_tuning665k_cluster.sh](https://github.com/heliossun/Visual-self-QA/blob/main/lora_instruct_tuning665k_cluster.sh)).
+Instruction tuning:
+Training script with DeepSpeed ZeRO-3 and lora: [`finetune_lora_clu_sq.sh`](heliossun/SQ-LLaVA/blob/main/scripts/finetune_lora_clu_sq.sh).
 
-2. Instruction tuning with ShareGPT4V-data:
-Training script with DeepSpeed ZeRO-3 and lora: [`lora_instruct_tuning835k.sh`]([https://github.com/heliossun/Visual-self-QA/lora_instruct_tuning835k.sh](https://github.com/heliossun/Visual-self-QA/blob/main/lora_instruct_tuning835k.sh)).
 
 - `--mm_projector_type cluster`: the prototype extractor & a two-layer MLP vision-language connector.
 - `--mm_projector_type mlp2x_gelu`: a two-layer MLP vision-language connector.
 - `--vision_tower openai/clip-vit-large-patch14-336`: CLIP ViT-L/14 336px.
 - `--image_aspect_ratio pad`: this pads the non-square images to square, instead of cropping them; it slightly reduces hallucination.
 - `--group_by_modality_length True`: this should only be used when your instruction tuning dataset contains both language (e.g. ShareGPT) and multimodal (e.g. LLaVA-Instruct). It makes the training sampler only sample a single modality (either image or language) during training, which we observe to speed up training by ~25%, and does not affect the final outcome.
-
-3. Training with self-questioning
-- `--version v1_sq`. 
+- `--version v1_sq`: training for visual self-questioning.
+- `--vit_lora_enable`: optimize vision encoder using vit lora. 
 
 
 ## Evaluation
 Prepare data
-Please download raw images of datasets (COCO, Flickr, nocaps, conceptual, concadia) for image captioning tasks.
+Please download raw images of datasets (COCO, Flickr, nocaps, conceptual) for image captioning tasks.
 1. Evaluate models on image captioning.
-See [experiments.sh/experiments2.sh](https://github.com/heliossun/Visual-self-QA/edit/main/experiments.sh) on 7 datasets.
+See [captioning.sh](https://github.com/heliossun/Visual-self-QA/edit/main/experiments.sh) on 4 datasets.
 2. Evaluate models on a diverse set of 12 benchmarks. To ensure the reproducibility, we evaluate the models with greedy decoding. We do not evaluate using beam search to make the inference process consistent with the chat demo of real-time outputs.
 
 See [Evaluation.md](https://github.com/haotian-liu/LLaVA/blob/main/docs/Evaluation.md).
 
-3. To test self-questioning
+3. To test visual self-questioning
 - `--version v1_sq`: use the self-questioning templage.
 - `--sq`: enable the self-questioning function.
 - `--n_shot 3`: the number of generated questions. 
