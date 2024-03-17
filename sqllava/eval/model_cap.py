@@ -5,11 +5,11 @@ import json
 from tqdm import tqdm
 import shortuuid
 
-from sqllava.constants import IMAGE_TOKEN_INDEX, DEFAULT_IMAGE_TOKEN, DEFAULT_IM_START_TOKEN, DEFAULT_IM_END_TOKEN
-from sqllava.conversation import conv_templates, SeparatorStyle
-from sqllava.model.builder import load_pretrained_model
-from sqllava.utils import disable_torch_init
-from sqllava.mm_utils import tokenizer_image_token, get_model_name_from_path, KeywordsStoppingCriteria
+from llava.constants import IMAGE_TOKEN_INDEX, DEFAULT_IMAGE_TOKEN, DEFAULT_IM_START_TOKEN, DEFAULT_IM_END_TOKEN
+from llava.conversation import conv_templates, SeparatorStyle
+from llava.model.builder import load_pretrained_model
+from llava.utils import disable_torch_init
+from llava.mm_utils import tokenizer_image_token, get_model_name_from_path, KeywordsStoppingCriteria
 from peft import PeftConfig, PeftModel
 from PIL import Image
 import math
@@ -91,10 +91,11 @@ def eval_Sophon(args):
         #print("First round QA: ",fqs, first_answer)
 
         #self questioning
+        fqs = DEFAULT_IMAGE_TOKEN + '\n'
         conv.clear_message()
-        conv.append_message(conv.roles[0], fqs)
-        conv.append_message(conv.roles[1], first_answer)
-        conv.append_message(conv.roles[2], None)
+        #conv.append_message(conv.roles[0], fqs)
+        #conv.append_message(conv.roles[1], first_answer)
+        conv.append_message(conv.roles[2], fqs)
         prompt = conv.get_prompt()
 
         input_ids = tokenizer_image_token(prompt, tokenizer, IMAGE_TOKEN_INDEX, return_tensors='pt').unsqueeze(
@@ -110,10 +111,11 @@ def eval_Sophon(args):
                     input_ids,
                     images=image_tensor.unsqueeze(0).half().cuda(),
                     do_sample=True,
-                    top_k=100,
-                    top_p=0.5,
+                    temperature=1.2,
+                    top_k=300,
+                    top_p=0.95,
                     # no_repeat_ngram_size=3,
-                    max_new_tokens=100,
+                    max_new_tokens=300,
                     use_cache=True)
             # print("out ids: ",output_ids)
             # print("output: ",output_ids[:, input_ids.shape[1]:])
@@ -248,9 +250,9 @@ def eval_sq(args):
                     images=image_tensor.unsqueeze(0).half().cuda(),
                     do_sample=True,
                     top_k=50,
-                    top_p=0.65,
+                    top_p=0.85,
                     # no_repeat_ngram_size=3,
-                    max_new_tokens=100,
+                    max_new_tokens=200,
                     use_cache=True)
             #print("out ids: ",output_ids)
             #print("output: ",output_ids[:, input_ids.shape[1]:])

@@ -2,6 +2,8 @@
 
 
 from typing import List, Optional, Tuple, Union
+
+import numpy as np
 import torch.nn.functional as F
 import torch
 import torch.nn as nn
@@ -13,7 +15,7 @@ from transformers import AutoConfig, AutoModelForCausalLM, \
 from transformers.modeling_outputs import CausalLMOutputWithPast
 
 from ..llava_arch import LlavaMetaModel, LlavaMetaForCausalLM
-from sqllava.model.WD_loss import WassersteinDisloss
+from llava.model.WD_loss import WassersteinDisloss
 from torch.nn.functional import normalize
 
 class LlavaConfig(LlamaConfig):
@@ -26,6 +28,30 @@ class LlavaLlamaModel(LlavaMetaModel, LlamaModel):
     def __init__(self, config: LlamaConfig):
         super(LlavaLlamaModel, self).__init__(config)
 
+
+def plot_dist(input, target, loss):
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+    from scipy.interpolate import make_interp_spline
+    N,D = input.shape
+    input_ = input.detach().cpu().float().numpy()
+    target_ = target.detach().cpu().float().numpy()
+    x=np.linspace(0,D,D)
+
+    for i in range(len(input_[:2])):
+        plt.figure(figsize=(8,6))
+        X_ = np.linspace(x.min(), x.max(), 500)
+        X_Y_Spline1 = make_interp_spline(x, input_[i])
+        X_Y_Spline2 = make_interp_spline(x, target_[i])
+        Y1 = X_Y_Spline1(X_)
+        Y2 = X_Y_Spline2(X_)
+        plt.plot(Y1, label="input distribution")
+        plt.plot(Y2, label="target distribution")
+        plt.legend()
+        plt.grid(True)
+        plt.savefig(f'./figures/{loss}_{i}_dis.pdf', format='pdf', bbox_inches='tight')
+        plt.close()
 
 class LlavaLlamaForCausalLM(LlamaForCausalLM, LlavaMetaForCausalLM):
     config_class = LlavaConfig
@@ -101,15 +127,18 @@ class LlavaLlamaForCausalLM(LlamaForCausalLM, LlavaMetaForCausalLM):
 
         if self.qavloss:
             n, l, d = image_features.shape
-            loss_fct = nn.KLDivLoss(reduction="batchmean", log_target=True)
+            #loss_fct = nn.KLDivLoss(reduction="batchmean", log_target=True)
+            loss_fct = nn.MSELoss()
             #image_features=torch.mean(image_features,dim=1,keepdim=True)
             #v = image_features.contiguous().view(-1, d)
             v_llm = hidden_states[:, -l - 2:-2, :]
-            image_features = torch.sum(image_features,dim=1)
-            v_llm = torch.sum(v_llm,dim=1)
-            inp = F.log_softmax(image_features,dim=-1)
-            target = F.log_softmax(v_llm,dim=-1)
-            qavloss = loss_fct(inp, target)
+            image_features = torch.mean(image_features,dim=1)
+            v_llm = torch.mean(v_llm,dim=1)
+            #inp = F.log_softmax(image_features,dim=-1)
+            #target = F.log_softmax(v_llm,dim=-1)
+
+            qavloss = loss_fct(image_features, v_llm)
+            plot_dist(image_features, v_llm, qavloss)
             loss = loss + self.loss_alpha*qavloss
 
         if not return_dict:

@@ -21,7 +21,7 @@ import torch.nn.functional as F
 from .multimodal_encoder.builder import build_vision_tower
 from .multimodal_projector.builder import build_vision_projector
 
-from sqllava.constants import IGNORE_INDEX, IMAGE_TOKEN_INDEX, DEFAULT_IMAGE_PATCH_TOKEN, DEFAULT_IM_START_TOKEN, DEFAULT_IM_END_TOKEN
+from llava.constants import IGNORE_INDEX, IMAGE_TOKEN_INDEX, DEFAULT_IMAGE_PATCH_TOKEN, DEFAULT_IM_START_TOKEN, DEFAULT_IM_END_TOKEN
 torch.set_printoptions(threshold=10_000)
 class LlavaMetaModel:
 
@@ -33,6 +33,7 @@ class LlavaMetaModel:
         if hasattr(config, "mm_vision_tower"):
             self.vision_tower = build_vision_tower(config, delay_load=True)
             self.mm_projector = build_vision_projector(config)
+            
 
 
     def get_vision_tower(self):
@@ -76,7 +77,7 @@ class LlavaMetaModel:
             # In case it is frozen by LoRA
             for p in self.mm_projector.parameters():
                 p.requires_grad = True
-
+        print("<<<<<>>>>>cluster param:", sum(p.numel() for p in self.mm_projector.parameters() if p.requires_grad))
         if pretrain_mm_mlp_adapter is not None:
             mm_projector_weights = torch.load(pretrain_mm_mlp_adapter, map_location='cpu')
             def get_w(weights, keyword):
