@@ -1,7 +1,6 @@
 # Self-questioning for Vision-Language Assistant
 ## Contents
 - [Install](#install)
-- [LLaVA Weights](#llava-weights)
 - [Demo](#Demo)
 - [Model Zoo](https://github.com/haotian-liu/LLaVA/blob/main/docs/MODEL_ZOO.md)
 - [Dataset](https://github.com/haotian-liu/LLaVA/blob/main/docs/Data.md)
@@ -35,10 +34,10 @@ pip install flash-attn --no-build-isolation
 | [sharegpt4v_instruct_gpt4-vision_cap100k.json](https://huggingface.co/datasets/Lin-Chen/ShareGPT4V/blob/main/sharegpt4v_instruct_gpt4-vision_cap100k.json) | 134 MB |
 | [share-captioner_coco_lcs_sam_1246k_1107.json](https://huggingface.co/datasets/Lin-Chen/ShareGPT4V/blob/main/share-captioner_coco_lcs_sam_1246k_1107.json) | 1.5 GB |
 | [sharegpt4v_mix665k_cap23k_coco-ap9k_lcs3k_sam9k_div2k.json](https://huggingface.co/datasets/Lin-Chen/ShareGPT4V/blob/main/sharegpt4v_mix665k_cap23k_coco-ap9k_lcs3k_sam9k_div2k.json) | 1.2 GB |
-
+| [LLaVA](https://github.com/haotian-liu/LLaVA/blob/main/docs/Data.md) | 134 MB |
 ### Prepare Images
 
-For your convinence, please follow [`download_data.sh`](https://github.com/heliossun/Visual-self-QA/edit/main/download_data.sh) for data preparation.
+For your convinence, please follow [`download_data.sh`](https://github.com/heliossun/SQ-LLaVA/blob/main/download_data.sh) for data preparation.
 
 - LAION-CC-SBU-558K: [images.zip](https://huggingface.co/datasets/liuhaotian/LLaVA-Pretrain/blob/main/images.zip)
 - COCO: [train2017](http://images.cocodataset.org/zips/train2017.zip)
