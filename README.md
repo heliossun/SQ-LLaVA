@@ -122,7 +122,7 @@ We have also provided a pre-trained weights for the pretraining stage, please do
 ### Visual Instruction Tuning
 
 Instruction tuning:
-Training script with DeepSpeed ZeRO-3 and lora: [`finetune_lora_clu_sq.sh`](heliossun/SQ-LLaVA/blob/main/scripts/finetune_lora_clu_sq.sh).
+Training script with DeepSpeed ZeRO-3 and lora: [`finetune_lora_clu_sq.sh`](https://github.com/heliossun/SQ-LLaVA/blob/main/scripts/finetune_lora_clu_sq.sh).
 
 
 - `--mm_projector_type cluster`: the prototype extractor & a two-layer MLP vision-language connector.
