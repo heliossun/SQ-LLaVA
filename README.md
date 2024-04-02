@@ -1,5 +1,5 @@
 # Self-questioning for Vision-Language Assistant
-[paper](https://arxiv.org/pdf/2403.11299.pdf)
+[[paper]](https://arxiv.org/pdf/2403.11299.pdf)
 
 ## Contents
 - [Install](#install)
