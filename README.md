@@ -3,9 +3,8 @@
 
 ## Contents
 - [Install](#install)
-- [Demo](#Demo)
-- [Model Zoo](https://github.com/haotian-liu/LLaVA/blob/main/docs/MODEL_ZOO.md)
-- [Dataset](https://github.com/haotian-liu/LLaVA/blob/main/docs/Data.md)
+- [Model Zoo]()
+- [Dataset](#data)
 - [Train](#train)
 - [Evaluation](#evaluation)
 
