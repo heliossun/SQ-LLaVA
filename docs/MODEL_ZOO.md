@@ -13,7 +13,8 @@
 
 <p align="center">
   <img src="../images/2-2.jpg" width="500px"> <br>
-  LLaVA-1.5 achieves SoTA performance across 11 benchmarks.
+  SQ-LLaVA achieves state-of-the-art performance on 9 out of 10 tasks compared with other
+open-ended models.
 </p>
 
 

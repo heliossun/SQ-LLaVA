@@ -1,5 +1,11 @@
-# Self-questioning for Vision-Language Assistant
-[[paper](https://arxiv.org/pdf/2403.11299.pdf)]
+# SQ-LlaVA: Self-questioning for Vision-Language Assistant
+<strong> SQ-LlaVA: Self-questioning for Vision-Language Assistant </strong> [[paper](https://arxiv.org/pdf/2403.11299.pdf)]
+[Guohao Sun](https://urchinpie.com/)
+
+<p align="center">
+  <img src="../images/1-1.png" width="500px"> <br>
+  A high-level comparison between visual instruction tuning and visual self-questioning (ours) for vision-language assistant.
+</p>
 
 ## Contents
 - [Install](#install)
