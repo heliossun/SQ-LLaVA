@@ -115,7 +115,7 @@ Both hyperparameters used in pretraining and finetuning are provided below.
 
 | Hyperparameter | Global Batch Size | Learning rate | Epochs | Max length | Weight decay |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| SQ-LLaVA | 128 | 2e-4 | 4 | 2048 | 0 |
+| SQ-LLaVA | 128 | 2e-4 | 1 | 2048 | 0 |
 
 
 ### Pretraining (feature alignment)
