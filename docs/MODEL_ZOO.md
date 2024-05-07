@@ -11,8 +11,8 @@
 
 | Name                              |   Projection   | Training Data | Download |
 |-----------------------------------|:--------------:|:-------------:|:--------:|
-| clip-vit-large-patch14-336-1200k | Proto & MLP-2x |   ShareGPT4V  | [vision encoder](https://huggingface.co/ZachSun/clip-vit-large-patch14-336-1200k)         |
-| clip-vit-large-patch14-336-665k  | Proto & MLP-2x |   LLaVA-v1.5  | [vision encoder](https://huggingface.co/ZachSun/clip-vit-large-patch14-336-665k)         |
+| sqllava-7B-vit-L-336-1200k | Proto & MLP-2x |   ShareGPT4V  | [vision encoder](https://huggingface.co/ZachSun/sqllava-7B-vit-L-336-1200k)         |
+| sqllava-7B-vit-L-336-665k  | Proto & MLP-2x |   LLaVA-v1.5  | [vision encoder](https://huggingface.co/ZachSun/sqllava-7B-vit-L-336-665k)         |
 
 <p align="center">
   <img src="../images/2-2.jpg" width="500px"> <br>
