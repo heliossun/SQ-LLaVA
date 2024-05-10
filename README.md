@@ -24,11 +24,12 @@
 conda create -n llava python=3.10 -y
 conda activate llava
 pip install --upgrade pip  # enable PEP 660 support
+cd SQ-LLaVA
 pip install -e .
 ```
 
 2. Install additional packages for training cases
-```
+```Shell
 pip install -e ".[train]"
 pip install flash-attn --no-build-isolation
 ```
