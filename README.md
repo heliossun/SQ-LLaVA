@@ -10,6 +10,11 @@
   A high-level comparison between visual instruction tuning and visual self-questioning (ours) for vision-language assistant.
 </p>
 
+## 🔥 News
+* **`2024.07.01`** 🌟 Our paper has been accepted by ECCV 2024.
+* **`2024.03.10`** 🌟 Our paper and code was released!
+
+
 ## Contents
 - [Install](#install)
 - [Model Zoo](./docs/MODEL_ZOO.md)
