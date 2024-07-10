@@ -179,6 +179,17 @@ Run [captioning.sh](https://github.com/heliossun/SQ-LLaVA/blob/main/scripts/eval
     --n_shot 3 
 ```
 
+## Citation
+If you find this code to be useful for your research, please consider citing.
+```bash
+@inproceedings{sun2024sq,
+  title={SQ-LLaVA: Self-Questioning for Large Vision-Language Assistant},
+  author={Sun, Guohao and Qin, Can and Wang, Jiamian and Chen, Zeyuan and Xu, Ran and Tao, Zhiqiang},
+  year = {2024},
+  booktitle = {ECCV},
+}
+```
+
 ## Acknowledgement
 
 - [LLaVA](https://github.com/haotian-liu/LLaVA): the codebase we built upon.
