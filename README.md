@@ -160,8 +160,9 @@ See [captioning.sh](https://github.com/heliossun/SQ-LLaVA/blob/main/scripts/eval
 See [Evaluation.md](./docs/Evaluation.md).
 
 3. To test visual self-questioning
+
 Run [captioning.sh](https://github.com/heliossun/SQ-LLaVA/blob/main/scripts/eval/captioning.sh) with the following settings.
-- `--version v1_sq`: use the self-questioning templage.
+- `--version v1_sq`: use the self-questioning template.
 - `--sq`: enable the self-questioning function.
 - `--n_shot 3`: the number of generated questions.
 
