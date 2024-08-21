@@ -15,10 +15,10 @@ open-ended models.
 </p>
 
 
-We provide the LoRA weights (LLM and ViT), please follow the script to load the correct model.
+We provide the LoRA weights (LLM and ViT), please download them first and follow the settings to load the correct model.
 
 ```bash
---model-path ./checkpoints/path/to/ckpt \ 
---model-base Lin-Chen/ShareGPT4V-7B_Pretrained_vit-large336-l12_vicuna-7b-v1.5 \ 
+--model-path ./checkpoints/path/to/sqllava-lora-7b \ # include the adapter and non-adapter weights 
+--model-base Lin-Chen/ShareGPT4V-7B_Pretrained_vit-large336-l12_vicuna-7b-v1.5 \ # pre-trained LLM weights
 --lora_pretrain ./checkpoints/path/to/ckpt/Vit-lora \  # ViT LoRA
 ```
