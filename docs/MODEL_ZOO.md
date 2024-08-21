@@ -18,7 +18,7 @@ open-ended models.
 We provide the LoRA weights (LLM and ViT), please follow the script to load the correct model.
 
 ```bash
-    --model-path ./checkpoints/path/to/ckpt \ 
- 	  --model-base Lin-Chen/ShareGPT4V-7B_Pretrained_vit-large336-l12_vicuna-7b-v1.5 \ 
-    --lora_pretrain ./checkpoints/path/to/ckpt/Vit-lora \  # ViT LoRA
+--model-path ./checkpoints/path/to/ckpt \ 
+--model-base Lin-Chen/ShareGPT4V-7B_Pretrained_vit-large336-l12_vicuna-7b-v1.5 \ 
+--lora_pretrain ./checkpoints/path/to/ckpt/Vit-lora \  # ViT LoRA
 ```
