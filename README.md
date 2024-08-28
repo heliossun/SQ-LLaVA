@@ -159,24 +159,18 @@ See [captioning.sh](https://github.com/heliossun/SQ-LLaVA/blob/main/scripts/eval
 
 See [Evaluation.md](./docs/Evaluation.md).
 
-3. To test visual self-questioning
-
-Run [captioning.sh](https://github.com/heliossun/SQ-LLaVA/blob/main/scripts/eval/captioning.sh) with the following settings.
+3. To test visual self-questioning, please check the [run_sq.sh]()
+with the following settings.
 - `--version v1_sq`: use the self-questioning template.
-- `--sq`: enable the self-questioning function.
 - `--n_shot 3`: the number of generated questions.
 
 ```bash
-  CUDA_VISIBLE_DEVICES=0 python -m sqllava.eval.model_cap \
-    --model_path ./checkpoints/path/to/ckpt/\
-    --model_base ./checkpoints/sharegpt4_pretrain \
-    --question-file ./playground/coco/question3.jsonl \
-    --image-folder path/to/coco2014/images/val2014/\
-    --answers-file ./output/coco/1200.jsonl \
-    --conv-mode="v1_sq" \
-    --lora_pretrain ./checkpoints/path/to/ckpt/Vit-lora \
-    --sq \
-    --n_shot 3 
+  CUDA_VISIBLE_DEVICES=0 python visual_questioning.py \
+  --model_path path/to/sqllava-v1.7-7b-lora-gpt4v-cluster-sq-vloraPTonly \ 
+  --model_base Lin-Chen/ShareGPT4V-7B_Pretrained_vit-large336-l12_vicuna-7b-v1.5 \
+  --conv-mode="v1_sq" \
+  --lora_pretrain path/to/sqllava-v1.7-7b-lora-gpt4v-cluster-sq-vloraPTonly \
+  --n_shot 3
 ```
 
 ## Citation

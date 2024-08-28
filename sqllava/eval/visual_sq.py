@@ -5,11 +5,11 @@ import json
 from tqdm import tqdm
 import shortuuid
 
-from llava.constants import IMAGE_TOKEN_INDEX, DEFAULT_IMAGE_TOKEN, DEFAULT_IM_START_TOKEN, DEFAULT_IM_END_TOKEN
-from llava.conversation import conv_templates, SeparatorStyle
-from llava.model.builder import load_pretrained_model
-from llava.utils import disable_torch_init
-from llava.mm_utils import tokenizer_image_token, get_model_name_from_path, KeywordsStoppingCriteria
+from sqllava.constants import IMAGE_TOKEN_INDEX, DEFAULT_IMAGE_TOKEN, DEFAULT_IM_START_TOKEN, DEFAULT_IM_END_TOKEN
+from sqllava.conversation import conv_templates, SeparatorStyle
+from sqllava.model.builder import load_pretrained_model
+from sqllava.utils import disable_torch_init
+from sqllava.mm_utils import tokenizer_image_token, get_model_name_from_path, KeywordsStoppingCriteria
 from peft import PeftConfig, PeftModel
 from PIL import Image
 import math
@@ -26,7 +26,7 @@ def get_chunk(lst, n, k):
     return chunks[k]
 
 
-def eval_Sophon(args):
+def eval_sqllava(args):
     valid_images = [".jpg",".gif",".png",".tga"]
     disable_torch_init()
     model_path = os.path.expanduser(args.model_path)
@@ -148,5 +148,5 @@ if __name__ == "__main__":
     parser.add_argument("--n_shot", type=int, default=5)
     args = parser.parse_args()
 
-    eval_Sophon(args)
+    eval_sqllava(args)
     
