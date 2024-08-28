@@ -142,10 +142,7 @@ Training script with DeepSpeed ZeRO-2: [`pretrain.sh`](https://github.com/helios
 
 - `--mm_projector_type cluster`: the prototype extractor & a two-layer MLP vision-language connector.
 - `--vision_tower openai/clip-vit-large-patch14-336`: CLIP ViT-L/14 336px.
-- `--vit_lora_enable`: optimize vision encoder using vit lora.
-After pretraining, put the folder `./checkpoints/path/to/pretrain` under `./checkpoints/projector`.
 
-We have also provided a pre-trained weights for the pretraining stage, please download [here](https://huggingface.co/ZachSun/Sophon-projector-cluster-pretrain) and put in `./checkpoints/projector`.
 
 ### Visual Instruction Tuning
 
