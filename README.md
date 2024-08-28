@@ -39,11 +39,23 @@ pip install -e ".[train]"
 pip install flash-attn --no-build-isolation
 ```
 
+## Demo (visual self-questioning)
 
+To test visual self-questioning, please run [run_sq.sh](https://github.com/heliossun/SQ-LLaVA/blob/main/demo/run_sq.sh)
+with the following settings.
+- `--version v1_sq`: use the self-questioning template.
+- `--n_shot 3`: the number of generated questions.
+
+```bash
+  CUDA_VISIBLE_DEVICES=0 python visual_questioning.py \
+  --model_path path/to/sqllava-v1.7-7b-lora-gpt4v-cluster-sq-vloraPTonly \ 
+  --model_base Lin-Chen/ShareGPT4V-7B_Pretrained_vit-large336-l12_vicuna-7b-v1.5 \
+  --conv-mode="v1_sq" \
+  --lora_pretrain path/to/sqllava-v1.7-7b-lora-gpt4v-cluster-sq-vloraPTonly \
+  --n_shot 3
+```
 
 ## Data
-
-
 
 | Data file name | Size |
 | --- | ---: |
@@ -159,19 +171,7 @@ See [captioning.sh](https://github.com/heliossun/SQ-LLaVA/blob/main/scripts/eval
 
 See [Evaluation.md](./docs/Evaluation.md).
 
-3. To test visual self-questioning, please check the [run_sq.sh]()
-with the following settings.
-- `--version v1_sq`: use the self-questioning template.
-- `--n_shot 3`: the number of generated questions.
 
-```bash
-  CUDA_VISIBLE_DEVICES=0 python visual_questioning.py \
-  --model_path path/to/sqllava-v1.7-7b-lora-gpt4v-cluster-sq-vloraPTonly \ 
-  --model_base Lin-Chen/ShareGPT4V-7B_Pretrained_vit-large336-l12_vicuna-7b-v1.5 \
-  --conv-mode="v1_sq" \
-  --lora_pretrain path/to/sqllava-v1.7-7b-lora-gpt4v-cluster-sq-vloraPTonly \
-  --n_shot 3
-```
 
 ## Citation
 If you find this code to be useful for your research, please consider citing.
