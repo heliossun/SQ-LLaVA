@@ -18,6 +18,7 @@
 ## Contents
 - [Install](#install)
 - [Model Zoo](./docs/MODEL_ZOO.md)
+- [Demo](#demo-visual-self-questioning)
 - [Dataset](#data)
 - [Train](#train)
 - [Evaluation](#evaluation)
