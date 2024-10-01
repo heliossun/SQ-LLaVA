@@ -3,7 +3,7 @@
 
 <strong> SQ-LlaVA: Self-questioning for Vision-Language Assistant </strong> [[paper](https://arxiv.org/pdf/2403.11299.pdf)]
 
-[Guohao Sun](https://urchinpie.com/), [Can Qin](https://canqin.tech/), [Jiamian Wang](https://jiamian-wang.github.io/), [Zeyuan Chen](https://www.linkedin.com/in/zeyuan-chen-/), [Ran Xu](https://xurantju.github.io/), [Zhiqiang Tao](https://ztao.cc/)
+[Guohao Sun](https://heliossun.github.io/), [Can Qin](https://canqin.tech/), [Jiamian Wang](https://jiamian-wang.github.io/), [Zeyuan Chen](https://www.linkedin.com/in/zeyuan-chen-/), [Ran Xu](https://xurantju.github.io/), [Zhiqiang Tao](https://ztao.cc/)
 
 <p align="center">
   <img src="./images/1-1.png" width="500px"> <br>
